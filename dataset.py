@@ -5,14 +5,17 @@ from __future__ import division
 import os
 import cv2
 import h5py
-import config
 import numpy as np
 import tensorflow as tf
 
 from glob import glob
 from tqdm import tqdm
+from config import get_config
 from multiprocessing import Pool
 
+
+# Configuration
+config, _ = get_config()
 
 seed = config.seed
 
