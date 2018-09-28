@@ -5,12 +5,16 @@ from __future__ import division
 import os
 import cv2
 import h5py
+import config
 import numpy as np
 import tensorflow as tf
 
 from glob import glob
 from tqdm import tqdm
 from multiprocessing import Pool
+
+
+seed = config.seed
 
 
 class DataSetLoader:
@@ -386,11 +390,9 @@ class Div2KDataSet:
 
 class DataIterator:
 
-    def __init__(self, x, y, batch_size, label_off=False):
+    def __init__(self, x, y, batch_size):
         self.x = x
-        self.label_off = label_off
-        if not self.label_off:
-            self.y = y
+        self.y = y
         self.batch_size = batch_size
         self.num_examples = num_examples = x.shape[0]
         self.num_batches = num_examples // batch_size
@@ -407,18 +409,13 @@ class DataIterator:
             np.random.shuffle(perm)
 
             self.x = self.x[perm]
-            if not self.label_off:
-                self.y = self.y[perm]
+            self.y = self.y[perm]
 
             start = 0
             self.pointer = self.batch_size
 
         end = self.pointer
-
-        if not self.label_off:
-            return self.x[start:end], self.y[start:end]
-        else:
-            return self.x[start:end]
+        return self.x[start:end], self.y[start:end]
 
     def iterate(self):
         for step in range(self.num_batches):
