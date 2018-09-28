@@ -98,6 +98,9 @@ def main():
         best_loss = 1e8
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
+                x_lr = np.reshape(x_lr, (rcan_model.batch_size,) + rcan_model.lr_img_size)
+                x_hr = np.reshape(x_hr, (rcan_model.batch_size,) + rcan_model.hr_img_size)
+
                 # training
                 _, loss = sess.run([rcan_model.opt, rcan_model.loss],
                                    feed_dict={

@@ -191,7 +191,7 @@ class RCAN:
             x = self.image_pre_process(x)
 
             # 1. head
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-head")
+            x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-head")
             head = self.act(x)
 
             # 2. body
@@ -199,15 +199,15 @@ class RCAN:
             for i in range(self.n_res_groups):
                 x = self.residual_group(x, f, kernel_size, reduction, use_bn, name=str(i))
 
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-body")
+            x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-body")
             body = self.act(x)
             body += head
 
             # 3. tail
             x = body
             x = self.image_scaling(x, f, scale, name='up-scaling')
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-tail")
-            tail = self.act(x)
+            x = tfutil.conv2d(x, f=self.n_channel, k=kernel_size, name="conv2d-tail")
+            tail = self.act(x)  # (-1, 384, 384, 3)
 
             x = self.image_post_process(tail)
             return x
