@@ -48,8 +48,18 @@ def conv2d(x, f=64, k=3, s=1, pad='SAME', use_bias=True, reuse=None, name='conv2
                             name=name)
 
 
-def pixel_shuffle(x, f, scaling_factor):
-    x = conv2d(x, f)
+def pixel_shuffle(x, scaling_factor):
+    # pixel_shuffle
+    # (batch_size, h, w, c * r^2) to (batch_size, h * r, w * r, c)
+    sf = scaling_factor
+
+    _, h, w, c = x.get_shape()
+    c //= sf ** 2
+
+    x = tf.split(x, scaling_factor, axis=-1)
+    x = tf.concat(x, 2)
+
+    x = tf.reshape(x, (-1, h * scaling_factor, w * scaling_factor, c))
     return x
 
 

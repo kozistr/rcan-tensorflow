@@ -175,11 +175,13 @@ class RCAN:
         """
         with tf.variable_scope(name):
             if scale_factor == 3:
-                x = tfutil.pixel_shuffle(x, f * 9, 3)
+                x = tfutil.conv2d(x, f * 9, name='conv2d-image_scaling-0')
+                x = tfutil.pixel_shuffle(x, 3)
             elif scale_factor & (scale_factor - 1) == 0:  # is it 2^n?
                 log_scale_factor = int(np.log2(scale_factor))
                 for i in range(log_scale_factor):
-                    x = tfutil.pixel_shuffle(x, f * 4, 2)
+                    x = tfutil.conv2d(x, f * 4, name='conv2d-image_scaling-%d' % i)
+                    x = tfutil.pixel_shuffle(x, 2)
             else:
                 raise NotImplementedError("[-] Not supported scaling factor (%d)" % scale_factor)
             return x
