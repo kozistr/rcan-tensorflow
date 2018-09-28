@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import tfutil
+import metric
 
 
 class RCAN:
@@ -17,7 +18,7 @@ class RCAN:
                  res_scale=1,                        # scaling factor of res block
                  n_filters=64,                       # number of conv2d filter size
                  kernel_size=3,                      # number of conv2d kernel size
-                 act=tf.nn.relu,                     # activation function
+                 activation='relu',                  # activation function
                  use_bn=False,                       # using batch_norm or not
                  reduction=16,                       # reduction rate at CA layer
                  rgb_mean=(0.4488, 0.4371, 0.4040),  # RGB mean, for DIV2K DataSet
@@ -31,6 +32,7 @@ class RCAN:
                  beta2=.999,                         # Adam beta2 value
                  opt_eps=1e-8,                       # Adam epsilon value
                  eps=1.1e-5,                         # epsilon
+                 tf_log="./model/",                  # path saved tensor summary/model
                  ):
         self.sess = sess
         self.batch_size = batch_size
@@ -45,7 +47,7 @@ class RCAN:
 
         self.n_filters = n_filters
         self.kernel_size = kernel_size
-        self.act = act
+        self.activation = activation
         self.use_bn = use_bn
         self.reduction = reduction
 
@@ -63,8 +65,19 @@ class RCAN:
 
         self._eps = eps
 
+        self.tf_log = tf_log
+
+        self.act = None
         self.opt = None
         self.loss = None
+        self.output = None
+
+        self.saver = None
+        self.best_saver = None
+        self.merged = None
+        self.writer = None
+
+        self.global_step = tf.Variable(0, trainable=False, name='global_step')
 
         # tensor placeholder for input
         self.x_lr = tf.placeholder(tf.float32, shape=[None] + self.lr_img_size, name='x-lr-img')
@@ -72,16 +85,32 @@ class RCAN:
 
         self.lr = tf.placeholder(tf.float32, name='learning_rate')
 
-        # RCAN model
-        self.model = self.residual_channel_attention_network(x=self.x_lr,
-                                                             f=self.n_filters,
-                                                             kernel_size=self.kernel_size,
-                                                             reduction=self.reduction,
-                                                             use_bn=self.use_bn,
-                                                             scale=self.img_scale)
+        # setting stuffs
+        self.setup()
 
         # build a network
         self.build_model()
+
+    def setup(self):
+        # Activation Function Setting
+        if self.activation == 'relu':
+            self.act = tfutil.relu
+        elif self.activation == 'leaky_relu':
+            self.act = tfutil.leaky_relu
+        elif self.activation == 'elu':
+            self.act = tfutil.elu
+        else:
+            raise NotImplementedError("[-] Not supported activation function (%s)" % self.activation)
+
+        # Optimizer
+        if self.optimizer == 'adam':
+            self.opt = tf.train.AdamOptimizer(learning_rate=self.lr,
+                                              beta1=self.beta1, beta2=self.beta2)
+        elif self.optimizer == 'sgd':  # gonna use mm opt actually
+            self.opt = tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=self.momentum)
+            # self.opt = tf.train.GradientDescentOptimizer(learning_rate=self.lr)
+        else:
+            raise NotImplementedError("[-] Not supported optimizer (%s)" % self.optimizer)
 
     def image_pre_process(self, x):
         r, g, b = tf.split(x, 3, 3)
@@ -97,8 +126,7 @@ class RCAN:
                          b + self.rgb_mean[0]], axis=3)
         return rgb
 
-    @staticmethod
-    def channel_attention(x, f, reduction, name):
+    def channel_attention(self, x, f, reduction, name):
         """
         Channel Attention (CA) Layer
         :param x: input layer
@@ -111,7 +139,7 @@ class RCAN:
             x_gap = tfutil.adaptive_global_average_pool_2d(x)
 
             x = tfutil.conv2d(x_gap, f=f // reduction, k=1, pad='VALID')
-            x = tf.nn.relu(x)
+            x = self.act(x)
 
             x = tfutil.conv2d(x, f=f, k=1, pad='VALID')
             x = tf.nn.sigmoid(x)
@@ -121,7 +149,7 @@ class RCAN:
         with tf.variable_scope("RCAB-%s" % name):
             x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-1")
             x = tf.layers.batch_normalization(epsilon=self._eps, name="bn-1") if use_bn else x
-            x = tf.nn.relu(x)
+            x = self.act(x)
 
             x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-2")
             res = tf.layers.batch_normalization(epsilon=self._eps, name="bn-2") if use_bn else x
@@ -137,48 +165,80 @@ class RCAN:
             res = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID')
             return res + x
 
-    def image_scaling(self, x, f, scale_factor):
+    def image_scaling(self, x, f, scale_factor, name):
         """
         :param x: image
+        :param f: conv2d filter
         :param scale_factor: scale factor
+        :param name: scope name
         :return:
         """
-        if scale_factor == 3:
-            x = tfutil.pixel_shuffle(x, f * 9, 3)
-        elif scale_factor & (scale_factor - 1) == 0:  # is it 2^n?
-            log_scale_factor = int(np.log2(scale_factor))
-            for i in range(log_scale_factor):
-                x = tfutil.pixel_shuffle(x, f * 4, 2)
-        else:
-            raise NotImplementedError("[-] Not supported scaling factor (%d)" % scale_factor)
-        return x
+        with tf.variable_scope(name):
+            if scale_factor == 3:
+                x = tfutil.pixel_shuffle(x, f * 9, 3)
+            elif scale_factor & (scale_factor - 1) == 0:  # is it 2^n?
+                log_scale_factor = int(np.log2(scale_factor))
+                for i in range(log_scale_factor):
+                    x = tfutil.pixel_shuffle(x, f * 4, 2)
+            else:
+                raise NotImplementedError("[-] Not supported scaling factor (%d)" % scale_factor)
+            return x
 
     def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale):
         with tf.variable_scope("Residual_Channel_Attention_Network"):
             x = self.image_pre_process(x)
 
-            # head
+            # 1. head
             x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-head")
-            head = tf.nn.relu(x)
+            head = self.act(x)
 
-            # body
+            # 2. body
             x = head
             for i in range(self.n_res_groups):
                 x = self.residual_group(x, f, kernel_size, reduction, use_bn, name=str(i))
 
             x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-body")
-            body = tf.nn.relu(x)
+            body = self.act(x)
             body += head
 
-            # tail
+            # 3. tail
             x = body
-            x = self.image_scaling(x, f, scale)
+            x = self.image_scaling(x, f, scale, name='up-scaling')
             x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-tail")
-            tail = tf.nn.relu(x)
+            tail = self.act(x)
 
             x = self.image_post_process(tail)
             return x
 
     def build_model(self):
+        # RCAN model
+        self.output = self.residual_channel_attention_network(x=self.x_lr,
+                                                              f=self.n_filters,
+                                                              kernel_size=self.kernel_size,
+                                                              reduction=self.reduction,
+                                                              use_bn=self.use_bn,
+                                                              scale=self.img_scale)
+
         # l1 loss
-        self.loss = tf.reduce_mean(tf.abs(self.model - self.x_hr))
+        self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
+
+        # optimizer
+        self.opt = self.opt.minimize(self.loss)
+
+        # metrics
+        psnr = metric.psnr(self.output, self.x_hr)
+        ssim = metric.ssim(self.output, self.x_hr)
+
+        # summaries
+        tf.summary.scalar("loss/l1_loss", self.loss)
+        tf.summary.scalar("metric/psnr", psnr)
+        tf.summary.scalar("metric/ssim", ssim)
+        tf.summary.scalar("misc/lr", self.lr)
+
+        # merge summary
+        self.merged = tf.summary.merge_all()
+
+        # model saver
+        self.saver = tf.train.Saver(max_to_keep=1)
+        self.best_saver = tf.train.Saver(max_to_keep=1)
+        self.writer = tf.summary.FileWriter(self.tf_log, self.sess.graph)
