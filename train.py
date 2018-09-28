@@ -6,6 +6,7 @@ import tensorflow as tf
 import time
 
 import model
+import util
 
 # Configuration
 config, _ = get_config()
@@ -15,15 +16,15 @@ def main():
     start_time = time.time()  # Clocking start
 
     # Div2K - Track 1: Bicubic downscaling - x4 DataSet load
-    ds = DataSet(ds_path="D://DataSet/DIV2K/",
+    ds = DataSet(ds_path=config.data_dir,
                  ds_name="X4",
                  use_save=True,
                  save_type="to_h5",
-                 save_file_name="D://DataSet/DIV2K/DIV2K",
+                 save_file_name=config.data_dir + "DIV2K",
                  use_img_scale=False)
     """
-    ds = DataSet(ds_hr_path="D://DataSet/DIV2K/DIV2K-hr.h5",
-                 ds_lr_path="D:///DataSet/DIV2K/DIV2K-lr.h5",
+    ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
+                 ds_lr_path=config.data_dir + "DIV2K-lr.h5",
                  use_img_scale=False)
     """
 
@@ -31,6 +32,8 @@ def main():
 
     print("[+] Loaded HR image ", hr.shape)
     print("[+] Loaded LR image ", lr.shape)
+
+    sample_x_lr = None
 
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
@@ -85,6 +88,7 @@ def main():
         rcan_model.global_step.assign(tf.constant(global_step))
         start_epoch = global_step // (ds.n_images // config.batch_size)
 
+        best_loss = 1e8
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 # training
@@ -98,8 +102,37 @@ def main():
                 if global_step % config.logging_step == 0:
                     print("[+] %d epochs %d steps" % (epoch, global_step), "loss : {.8f}".format(loss))
 
+                    # summary
+                    summary = sess.run(rcan_model.merged,
+                                       feed_dict={
+                                           rcan_model.x_lr: x_lr,
+                                           rcan_model.x_hr: x_hr,
+                                           rcan_model.lr: lr,
+                                       })
+                    rcan_model.writer.add_summary(summary, global_step)
+
+                    # output
+                    output = sess.run(rcan_model.output,
+                                      feed_dict={
+                                          rcan_model.x_lr: sample_x_lr,
+                                          rcan_model.lr: lr,
+                                      })
+                    util.img_save(img=output, path=config.output_dir + "/%d.jpg" % global_step)
+
+                    # model save
+                    rcan_model.saver.save(sess, config.summary, global_step)
+
+                    if loss < best_loss:
+                        print("[*] improved {.8f} to {.8f}".format(best_loss, loss))
+                        rcan_model.best_saver.save(sess, config.summary, global_step)
+                        best_loss = loss
+
                 # increase global step
                 rcan_model.global_step.assign_add(tf.constant(1))
+
+                # lr schedule
+                if global_step and global_step % config.lr_decay_step == 0:
+                    lr *= config.lr_decay
 
     end_time = time.time() - start_time  # Clocking end
 
