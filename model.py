@@ -7,11 +7,16 @@ class RCAN:
     def __init__(self,
                  sess,                 # Tensorflow session
                  batch_size=16,        # batch size
+                 n_res_blocks=4,       # number of residual block
+                 res_scale=1,          # scaling factor of res block
                  reduction=16,         # reduction rate at CA layer
                  eps=1.1e-5,
                  ):
         self.sess = sess
         self.batch_size = batch_size
+
+        self.n_res_blocks = n_res_blocks
+        self.res_scale = res_scale
 
         self.reduction = reduction
 
@@ -39,16 +44,22 @@ class RCAN:
 
     def residual_channel_attention_block(self, x, f, kernel_size, reduction, use_bn, name):
         with tf.variable_scope("RCAB-%s" % name):
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID')
-            x = tf.layers.batch_normalization(epsilon=self._eps) if use_bn else x
+            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-1")
+            x = tf.layers.batch_normalization(epsilon=self._eps, name="bn-1") if use_bn else x
             x = tf.nn.relu(x)
 
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID')
-            res = tf.layers.batch_normalization(epsilon=self._eps) if use_bn else x
+            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-2")
+            res = tf.layers.batch_normalization(epsilon=self._eps, name="bn-2") if use_bn else x
 
-            x = self.channel_attention(x, f, reduction, name)
+            x = self.channel_attention(x, f, reduction, name="RCAB-%s" % name)
+            return self.res_scale * res + x
+
+    def residual_group(self, x, f, kernel_size, reduction, use_bn, name):
+        with tf.variable_scope("RG-%s" % name):
+            for i in range(self.n_res_blocks):
+                x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i))
+
+            res = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID')
             return res + x
 
-    @staticmethod
-    def residual_group(x, f, reduction, name):
-        pass
+
