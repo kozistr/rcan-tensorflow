@@ -29,6 +29,8 @@ network_arg.add_argument('--activation', type=str, default='relu')
 network_arg.add_argument('--res_scale', type=float, default=1.)
 network_arg.add_argument('--n_res_blocks', type=int, default=20)
 network_arg.add_argument('--n_res_groups', type=int, default=10)
+network_arg.add_argument('--reduction', type=int, default=16)
+network_arg.add_argument('--use_bn', type=bool, default=False)
 
 # Train/Test hyper-parameters
 train_arg = add_arg_group('Training')
@@ -39,6 +41,9 @@ train_arg.add_argument('--optimizer', type=str, default='adam', choices=['adam',
 train_arg.add_argument('--lr', type=float, default=1e-4)
 train_arg.add_argument('--lr_decay', type=float, default=.5)
 train_arg.add_argument('--lr_decay_step', type=int, default=2e5)
+train_arg.add_argument('--momentum', type=float, default=.9)
+train_arg.add_argument('--beta1', type=float, default=.9)
+train_arg.add_argument('--beta2', type=float, default=.999)
 train_arg.add_argument('--lr_lower_boundary', type=float, default=1e-5)
 train_arg.add_argument('--n_threads', type=int, default=8)
 train_arg.add_argument('--opt_epsilon', type=float, default=1e-8)
@@ -47,6 +52,7 @@ train_arg.add_argument('--opt_epsilon', type=float, default=1e-8)
 data_arg = add_arg_group('Data')
 data_arg.add_argument('--data_dir', type=str, default="D://DataSet//DIV2K//")
 data_arg.add_argument('--output_dir', type=str, default='./output/')
+data_arg.add_argument('--summary', type=str, default='./log/')
 
 # Misc
 misc_arg = add_arg_group('Misc')
