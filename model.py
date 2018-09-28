@@ -223,7 +223,7 @@ class RCAN:
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
 
         # optimizer
-        self.opt = self.opt.minimize(self.loss)
+        self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
 
         # metrics
         psnr = metric.psnr(self.output, self.x_hr)
