@@ -3,6 +3,7 @@ from dataset import DataIterator
 from config import get_config
 
 import tensorflow as tf
+import numpy as np
 import time
 
 import model
@@ -11,11 +12,15 @@ import util
 # Configuration
 config, _ = get_config()
 
+np.random.seed(config.seed)
+tf.set_random_seed(config.seed)
+
 
 def main():
     start_time = time.time()  # Clocking start
 
     # Div2K - Track 1: Bicubic downscaling - x4 DataSet load
+    """
     ds = DataSet(ds_path=config.data_dir,
                  ds_name="X4",
                  use_save=True,
@@ -26,14 +31,11 @@ def main():
     ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
                  ds_lr_path=config.data_dir + "DIV2K-lr.h5",
                  use_img_scale=False)
-    """
 
     hr, lr = ds.hr_images, ds.lr_images  # [0, 255] scaled images
 
     print("[+] Loaded HR image ", hr.shape)
     print("[+] Loaded LR image ", lr.shape)
-
-    sample_x_lr = None
 
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
@@ -48,7 +50,7 @@ def main():
                                 img_scaling_factor=config.image_scaling_factor,
                                 n_res_blocks=config.n_res_blocks,
                                 n_res_groups=config.n_res_groups,
-                                res_scale=config.n_res_scale,
+                                res_scale=config.res_scale,
                                 n_filters=config.filter_size,
                                 kernel_size=config.kernel_size,
                                 activation=config.activation,
@@ -67,6 +69,11 @@ def main():
 
         # Initializing
         sess.run(tf.global_variables_initializer())
+
+        # sample LR image
+        rnd = np.random.randint(0, ds.n_images)
+        sample_x_lr = lr[rnd]
+        sample_x_lr = np.reshape(sample_x_lr, (1,) + rcan_model.lr_img_size)  # (1, 96, 96, 3)
 
         # Load model & Graph & Weights
         global_step = 0

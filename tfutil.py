@@ -20,9 +20,10 @@ def adaptive_global_average_pool_2d(x):
     """
     In the paper, using gap which output size is 1, so i just gap func :)
     :param x: 4d-tensor, (batch_size, height, width, channel)
-    :return: 2d-tensor, (batch_size, 1)
+    :return: 4d-tensor, (batch_size, 1, 1, channel)
     """
-    return tf.reduce_mean(x, axis=[1, 2, 3])
+    c = x.get_shape()[-1]
+    return tf.reshape(tf.reduce_mean(x, axis=[1, 2]), (-1, 1, 1, c))
 
 
 def conv2d(x, f=64, k=3, s=1, pad='SAME', use_bias=True, reuse=None, name='conv2d'):
@@ -61,19 +62,3 @@ def pixel_shuffle(x, scaling_factor):
 
     x = tf.reshape(x, (-1, h * scaling_factor, w * scaling_factor, c))
     return x
-
-
-# ---------------------------------------------------------------------------------------------
-# Activation Functions
-
-
-def relu(x):
-    return tf.nn.relu
-
-
-def leaky_relu(x, alpha=.2):
-    return tf.nn.leaky_relu(x, alpha)
-
-
-def elu(x):
-    return tf.nn.elu(x)

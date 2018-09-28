@@ -80,8 +80,8 @@ class RCAN:
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
 
         # tensor placeholder for input
-        self.x_lr = tf.placeholder(tf.float32, shape=[None] + self.lr_img_size, name='x-lr-img')
-        self.x_hr = tf.placeholder(tf.float32, shape=[None] + self.hr_img_size, name='x-hr-img')
+        self.x_lr = tf.placeholder(tf.float32, shape=(None,) + self.lr_img_size, name='x-lr-img')
+        self.x_hr = tf.placeholder(tf.float32, shape=(None,) + self.hr_img_size, name='x-hr-img')
 
         self.lr = tf.placeholder(tf.float32, name='learning_rate')
 
@@ -94,11 +94,11 @@ class RCAN:
     def setup(self):
         # Activation Function Setting
         if self.activation == 'relu':
-            self.act = tfutil.relu
+            self.act = tf.nn.relu
         elif self.activation == 'leaky_relu':
-            self.act = tfutil.leaky_relu
+            self.act = tf.nn.leaky_relu
         elif self.activation == 'elu':
-            self.act = tfutil.elu
+            self.act = tf.nn.elu
         else:
             raise NotImplementedError("[-] Not supported activation function (%s)" % self.activation)
 
@@ -138,20 +138,20 @@ class RCAN:
         with tf.variable_scope("CA-%s" % name):
             x_gap = tfutil.adaptive_global_average_pool_2d(x)
 
-            x = tfutil.conv2d(x_gap, f=f // reduction, k=1, pad='VALID')
+            x = tfutil.conv2d(x_gap, f=f // reduction, k=1, name="conv2d-1")
             x = self.act(x)
 
-            x = tfutil.conv2d(x, f=f, k=1, pad='VALID')
+            x = tfutil.conv2d(x, f=f, k=1, name="conv2d-2")
             x = tf.nn.sigmoid(x)
             return x_gap * x
 
     def residual_channel_attention_block(self, x, f, kernel_size, reduction, use_bn, name):
         with tf.variable_scope("RCAB-%s" % name):
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-1")
+            x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-1")
             x = tf.layers.batch_normalization(epsilon=self._eps, name="bn-1") if use_bn else x
             x = self.act(x)
 
-            x = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID', name="conv2d-2")
+            x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-2")
             res = tf.layers.batch_normalization(epsilon=self._eps, name="bn-2") if use_bn else x
 
             x = self.channel_attention(x, f, reduction, name="RCAB-%s" % name)
@@ -162,7 +162,7 @@ class RCAN:
             for i in range(self.n_res_blocks):
                 x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i))
 
-            res = tfutil.conv2d(x, f=f, k=kernel_size, pad='VALID')
+            res = tfutil.conv2d(x, f=f, k=kernel_size)
             return res + x
 
     def image_scaling(self, x, f, scale_factor, name):
