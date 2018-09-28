@@ -117,7 +117,7 @@ def main():
                                           rcan_model.x_lr: sample_x_lr,
                                           rcan_model.lr: lr,
                                       })
-                    util.img_save(img=output, path=config.output_dir + "/%d.jpg" % global_step)
+                    util.img_save(img=output, path=config.output_dir + "/%d.png" % global_step)
 
                     # model save
                     rcan_model.saver.save(sess, config.summary, global_step)
