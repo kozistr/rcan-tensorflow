@@ -1,14 +1,22 @@
 import tensorflow as tf
 
+from config import get_config
 
-SEED = 1337
+
+# Configuration
+config, _ = get_config()
+
+SEED = config.seed
 
 tf.set_random_seed(SEED)
+
+# ---------------------------------------------------------------------------------------------
+# Initializer & Regularizer
 
 w_init = tf.contrib.layers.variance_scaling_initializer(factor=1., mode='FAN_AVG', uniform=True)
 b_init = tf.zeros_initializer()
 
-reg = 5e-4
+reg = config.l2_reg
 w_reg = tf.contrib.layers.l2_regularizer(reg)
 
 
