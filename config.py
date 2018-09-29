@@ -31,6 +31,7 @@ network_arg.add_argument('--n_res_blocks', type=int, default=20)
 network_arg.add_argument('--n_res_groups', type=int, default=10)
 network_arg.add_argument('--reduction', type=int, default=16)
 network_arg.add_argument('--use_bn', type=bool, default=False)
+network_arg.add_argument('--l2_reg', type=float, default=5e-4)
 
 # Train/Test hyper-parameters
 train_arg = add_arg_group('Training')
@@ -57,5 +58,5 @@ data_arg.add_argument('--summary', type=str, default='./log/')
 # Misc
 misc_arg = add_arg_group('Misc')
 misc_arg.add_argument('--device', type=str, default='gpu')
-misc_arg.add_argument('--pre_trained', type=str, default='./ml_model/')
+misc_arg.add_argument('--pre_trained', type=str, default='./model/')
 misc_arg.add_argument('--seed', type=int, default=1337)
