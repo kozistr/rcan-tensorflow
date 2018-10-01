@@ -26,11 +26,11 @@ def main():
                  use_save=True,
                  save_type="to_h5",
                  save_file_name=config.data_dir + "DIV2K",
-                 use_img_scale=False)
+                 use_img_scale=True)
     """
     ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
                  ds_lr_path=config.data_dir + "DIV2K-lr.h5",
-                 use_img_scale=False)
+                 use_img_scale=True)
 
     hr, lr = ds.hr_images, ds.lr_images  # [0, 255] scaled images
 
@@ -107,6 +107,7 @@ def main():
                                        rcan_model.x_lr: x_lr,
                                        rcan_model.x_hr: x_hr,
                                        rcan_model.lr: lr,
+                                       rcan_model.is_train: True,
                                    })
 
                 if global_step % config.logging_step == 0:
@@ -118,6 +119,7 @@ def main():
                                            rcan_model.x_lr: x_lr,
                                            rcan_model.x_hr: x_hr,
                                            rcan_model.lr: lr,
+                                           rcan_model.is_train: False,
                                        })
                     rcan_model.writer.add_summary(summary, global_step)
 
@@ -126,9 +128,11 @@ def main():
                                       feed_dict={
                                           rcan_model.x_lr: sample_x_lr,
                                           rcan_model.lr: lr,
+                                          rcan_model.is_train: False,
                                       })
                     output = np.reshape(output, rcan_model.hr_img_size)
-                    util.img_save(img=output, path=config.output_dir + "/%d.png" % global_step)
+                    util.img_save(img=output, path=config.output_dir + "/%d.png" % global_step,
+                                  use_inverse=True)
 
                     # model save
                     rcan_model.saver.save(sess, config.summary, global_step)

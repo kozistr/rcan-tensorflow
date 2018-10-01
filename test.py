@@ -70,14 +70,15 @@ def main():
         feed = {
             rcan_model.x_lr: np.reshape(src_img, (1,) + rcan_model.lr_img_size),  # (1, 96, 96, 3)
             rcan_model.lr: config.lr,  # dummy
+            rcan_model.is_train: False,
         }
 
         # get result
         output = sess.run(rcan_model.output, feed_dict=feed)
-        output = np.reshape(output, (1,) + rcan_model.hr_img_size)  # (1, 384, 384, 3)
+        output = np.reshape(output, rcan_model.hr_img_size)  # (384, 384, 3)
 
         # save result
-        util.save_image(output, (1, 1), args.dst_image)
+        util.img_save(output, (1, 1), args.dst_image, use_inverse=True)
 
 
 if __name__ == "__main__":
