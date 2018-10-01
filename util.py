@@ -47,5 +47,5 @@ def save_images(images, size, image_path, inv_type='255', use_inverse=False):
 
 
 def img_save(img, path, inv_type='255', use_inverse=False):
-    img = inverse_transform(img, inv_type) if use_inverse else imag
+    img = inverse_transform(img, inv_type) if use_inverse else img
     return scipy.misc.imsave(path, img)
