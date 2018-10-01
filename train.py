@@ -110,7 +110,7 @@ def main():
                                    })
 
                 if global_step % config.logging_step == 0:
-                    print("[+] %d epochs %d steps" % (epoch, global_step), "loss : {.8f}".format(loss))
+                    print("[+] %d epochs %d steps" % (epoch, global_step), "loss : {:.8f}".format(loss))
 
                     # summary
                     summary = sess.run(rcan_model.merged,
@@ -133,7 +133,7 @@ def main():
                     rcan_model.saver.save(sess, config.summary, global_step)
 
                     if loss < best_loss:
-                        print("[*] improved {.8f} to {.8f}".format(best_loss, loss))
+                        print("[*] improved {:.8f} to {:.8f}".format(best_loss, loss))
                         rcan_model.best_saver.save(sess, config.summary, global_step)
                         best_loss = loss
 
