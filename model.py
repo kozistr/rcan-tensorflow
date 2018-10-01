@@ -228,8 +228,8 @@ class RCAN:
         self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
 
         # metrics
-        psnr = metric.psnr(self.output, self.x_hr)
-        ssim = metric.ssim(self.output, self.x_hr)
+        psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr))
+        ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr))
 
         # summaries
         tf.summary.scalar("loss/l1_loss", self.loss)
