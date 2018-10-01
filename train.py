@@ -127,6 +127,7 @@ def main():
                                           rcan_model.x_lr: sample_x_lr,
                                           rcan_model.lr: lr,
                                       })
+                    output = np.reshape(output, rcan_model.hr_img_size)
                     util.img_save(img=output, path=config.output_dir + "/%d.png" % global_step)
 
                     # model save
@@ -137,12 +138,13 @@ def main():
                         rcan_model.best_saver.save(sess, config.summary, global_step)
                         best_loss = loss
 
-                # increase global step
-                rcan_model.global_step.assign_add(tf.constant(1))
-
                 # lr schedule
                 if global_step and global_step % config.lr_decay_step == 0:
                     lr *= config.lr_decay
+
+                # increase global step
+                rcan_model.global_step.assign_add(tf.constant(1))
+                global_step += 1
 
     end_time = time.time() - start_time  # Clocking end
 
