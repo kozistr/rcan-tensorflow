@@ -4,10 +4,19 @@ from config import get_config
 
 import tensorflow as tf
 import numpy as np
+import argparse
 import time
 
 import model
 import util
+
+
+# Argument
+parser = argparse.ArgumentParser()
+parser.add_argument('--resize_to', type=int, default=0)
+args = parser.parse_args()
+
+resize_to = args.resize_to
 
 # Configuration
 config, _ = get_config()
@@ -37,6 +46,24 @@ def main():
     lr_shape = (ds.lr_height, ds.lr_width, ds.channel)
     hr_shape = (ds.hr_height, ds.hr_width, ds.channel)
 
+    lr = np.reshape(lr, (-1,) + lr_shape)
+    hr = np.reshape(hr, (-1,) + hr_shape)
+
+    if not resize_to == 0:
+        import cv2
+
+        lr_shape = (resize_to, resize_to, ds.channel)
+        hr_shape = (resize_to * config.image_scaling_factor, resize_to * config.image_scaling_factor, ds.channel)
+
+        new_lr = np.zeros((ds.n_images,) + lr_shape, dtype=np.float32)
+        new_hr = np.zeros((ds.n_images,) + hr_shape, dtype=np.float32)
+        for idx in range(ds.n_images):
+            new_lr[idx] = cv2.resize(lr[idx], lr_shape[:-1], cv2.INTER_CUBIC)
+            new_hr[idx] = cv2.resize(hr[idx], hr_shape[:-1], cv2.INTER_LINEAR)
+
+        hr = new_hr
+        lr = new_lr
+
     print("[+] Loaded LR image ", lr_shape)
     print("[+] Loaded HR image ", hr_shape)
 
@@ -56,6 +83,8 @@ def main():
 
     with tf.Session(config=tf_config) as sess:
         rcan_model = model.RCAN(sess=sess,
+                                lr_img_size=lr_shape[:-1],
+                                hr_img_size=hr_shape[:-1],
                                 batch_size=config.batch_size,
                                 img_scaling_factor=config.image_scaling_factor,
                                 n_res_blocks=config.n_res_blocks,
@@ -104,9 +133,6 @@ def main():
         best_loss = 2e2
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
-                x_lr = np.reshape(x_lr, (-1,) + lr_shape)
-                x_hr = np.reshape(x_hr, (-1,) + hr_shape)
-
                 # training
                 _, loss = sess.run([rcan_model.opt, rcan_model.loss],
                                    feed_dict={
