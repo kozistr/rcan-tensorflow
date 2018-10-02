@@ -32,7 +32,7 @@ def main():
                  ds_lr_path=config.data_dir + "DIV2K-lr.h5",
                  use_img_scale=True)
 
-    hr, lr = ds.hr_images, ds.lr_images  # [0, 255] scaled images
+    hr, lr = ds.hr_images, ds.lr_images  # [0, 1] scaled images
 
     print("[+] Loaded HR image ", hr.shape)
     print("[+] Loaded LR image ", lr.shape)
@@ -75,6 +75,8 @@ def main():
         rnd = np.random.randint(0, ds.n_images)
         sample_x_lr = lr[rnd]
         sample_x_lr = np.reshape(sample_x_lr, (1,) + rcan_model.lr_img_size)  # (1, 96, 96, 3)
+
+        util.img_save(img=sample_x_lr, path=config.outout_dir + "/sample_lr.png", use_inverse=True)
 
         # Load model & Graph & Weights
         global_step = 0
