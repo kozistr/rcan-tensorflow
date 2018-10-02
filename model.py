@@ -116,18 +116,11 @@ class RCAN:
         else:
             raise NotImplementedError("[-] Not supported optimizer (%s)" % self.optimizer)
 
-    def image_pre_process(self, x):
+    def image_process(self, x, sign=-1):
         r, g, b = tf.split(x, 3, 3)
-        rgb = tf.concat([r - self.rgb_mean[0],
-                         g - self.rgb_mean[1],
-                         b - self.rgb_mean[2]], axis=3)
-        return rgb
-
-    def image_post_process(self, x):
-        r, g, b = tf.split(x, 3, 3)
-        rgb = tf.concat([r + self.rgb_mean[0],
-                         g + self.rgb_mean[1],
-                         b + self.rgb_mean[2]], axis=3)
+        rgb = tf.concat([r + sign * self.rgb_mean[0],
+                         g + sign * self.rgb_mean[1],
+                         b + sign * self.rgb_mean[2]], axis=3)
         return rgb
 
     def channel_attention(self, x, f, reduction, name):
@@ -140,35 +133,41 @@ class RCAN:
         :return: output layer
         """
         with tf.variable_scope("CA-%s" % name):
-            x_gap = tfutil.adaptive_global_average_pool_2d(x)
+            skip_conn = x
 
-            x = tfutil.conv2d(x_gap, f=f // reduction, k=1, name="conv2d-1")
+            x = tfutil.adaptive_global_average_pool_2d(x)
+
+            x = tfutil.conv2d(x, f=f // reduction, k=1, name="conv2d-1")
             x = self.act(x)
 
             x = tfutil.conv2d(x, f=f, k=1, name="conv2d-2")
             x = tf.nn.sigmoid(x)
-            return x_gap * x
+            return skip_conn * x
 
     def residual_channel_attention_block(self, x, f, kernel_size, reduction, use_bn, name, is_train=True):
         with tf.variable_scope("RCAB-%s" % name):
+            skip_conn = x
+
             x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-1")
             x = tf.layers.BatchNormalization(epsilon=self._eps, trainable=is_train, name="bn-1")(x) if use_bn else x
             x = self.act(x)
 
             x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-2")
-            res = tf.layers.BatchNormalization(epsilon=self._eps, trainable=is_train, name="bn-2")(x) if use_bn else x
+            x = tf.layers.BatchNormalization(epsilon=self._eps, trainable=is_train, name="bn-2")(x) if use_bn else x
 
             x = self.channel_attention(x, f, reduction, name="RCAB-%s" % name)
-            return self.res_scale * res + x
+            return self.res_scale * skip_conn + x
 
     def residual_group(self, x, f, kernel_size, reduction, use_bn, name, is_train=True):
         with tf.variable_scope("RG-%s" % name):
+            skip_conn = x
+
             for i in range(self.n_res_blocks):
                 x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i),
                                                           is_train=is_train)
 
-            res = tfutil.conv2d(x, f=f, k=kernel_size)
-            return res + x
+            x = tfutil.conv2d(x, f=f, k=kernel_size)
+            return skip_conn + x
 
     def image_scaling(self, x, f, scale_factor, name):
         """
@@ -180,12 +179,12 @@ class RCAN:
         """
         with tf.variable_scope(name):
             if scale_factor == 3:
-                x = tfutil.conv2d(x, f * 9, name='conv2d-image_scaling-0')
+                x = tfutil.conv2d(x, f * 9, k=1, name='conv2d-image_scaling-0')
                 x = tfutil.pixel_shuffle(x, 3)
             elif scale_factor & (scale_factor - 1) == 0:  # is it 2^n?
                 log_scale_factor = int(np.log2(scale_factor))
                 for i in range(log_scale_factor):
-                    x = tfutil.conv2d(x, f * 4, name='conv2d-image_scaling-%d' % i)
+                    x = tfutil.conv2d(x, f * 4, k=1, name='conv2d-image_scaling-%d' % i)
                     x = tfutil.pixel_shuffle(x, 2)
             else:
                 raise NotImplementedError("[-] Not supported scaling factor (%d)" % scale_factor)
@@ -193,7 +192,7 @@ class RCAN:
 
     def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale, is_train=True):
         with tf.variable_scope("Residual_Channel_Attention_Network"):
-            x = self.image_pre_process(x)
+            x = self.image_process(x, sign=-1)
 
             # 1. head
             head = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-head")
@@ -211,7 +210,7 @@ class RCAN:
             x = self.image_scaling(x, f, scale, name='up-scaling')
             tail = tfutil.conv2d(x, f=self.n_channel, k=kernel_size, name="conv2d-tail")  # (-1, 384, 384, 3)
 
-            x = self.image_post_process(tail)
+            x = self.image_process(tail, sign=1)
             return x
 
     def build_model(self):
