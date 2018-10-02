@@ -34,11 +34,25 @@ def main():
 
     hr, lr = ds.hr_images, ds.lr_images  # [0, 1] scaled images
 
-    print("[+] Loaded HR image ", hr.shape)
+    lr_shape = (ds.lr_height, ds.lr_width, ds.channel)
+    hr_shape = (ds.hr_height, ds.hr_width, ds.channel)
+
+    lr = np.reshape(lr, (-1,) + lr_shape)
+    hr = np.reshape(hr, (-1,) + hr_shape)
+
     print("[+] Loaded LR image ", lr.shape)
+    print("[+] Loaded HR image ", hr.shape)
 
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
+
+    # sample LR image
+    rnd = np.random.randint(0, ds.n_images)
+    sample_x_lr = lr[rnd]
+    sample_x_lr = np.reshape(sample_x_lr, (1,) + lr_shape)  # (1, 96, 96, 3)
+
+    util.img_save(img=np.reshape(sample_x_lr, lr_shape), path=config.output_dir + "/sample_lr.png",
+                  use_inverse=True)
 
     # gpu config
     gpu_config = tf.GPUOptions(allow_growth=True)
@@ -70,14 +84,6 @@ def main():
 
         # Initializing
         sess.run(tf.global_variables_initializer())
-
-        # sample LR image
-        rnd = np.random.randint(0, ds.n_images)
-        sample_x_lr = lr[rnd]
-        sample_x_lr = np.reshape(sample_x_lr, (1,) + rcan_model.lr_img_size)  # (1, 96, 96, 3)
-
-        util.img_save(img=np.reshape(sample_x_lr, rcan_model.lr_img_size), path=config.output_dir + "/sample_lr.png",
-                      use_inverse=True)
 
         # Load model & Graph & Weights
         global_step = 0
