@@ -33,6 +33,7 @@ class RCAN:
                  opt_eps=1e-8,                       # Adam epsilon value
                  eps=1.1e-5,                         # epsilon
                  tf_log="./model/",                  # path saved tensor summary/model
+                 n_gpu=1,                            # number of GPU
                  ):
         self.sess = sess
         self.batch_size = batch_size
@@ -66,6 +67,8 @@ class RCAN:
         self._eps = eps
 
         self.tf_log = tf_log
+
+        self.n_gpu = n_gpu
 
         self.act = None
         self.opt = None
@@ -225,7 +228,8 @@ class RCAN:
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
 
         # optimizer
-        self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
+        # self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
+        grads = self.opt.compute_gradients(self.loss)
 
         # metrics
         psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr))

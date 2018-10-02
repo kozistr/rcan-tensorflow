@@ -70,3 +70,22 @@ def pixel_shuffle(x, scaling_factor):
 
     x = tf.reshape(x, (-1, h * scaling_factor, w * scaling_factor, c))
     return x
+
+
+# ---------------------------------------------------------------------------------------------
+# Gradients (for supporting multi-gpu in tensorflow)
+
+
+def average_gradients(grads):
+    average_grads = []
+    for grad_and_vars in zip(**grads):
+        grads = [tf.expand_dims(g, axis=0) for g, _ in grad_and_vars]
+
+        grad = tf.concat(grads, axis=0)
+        grad = tf.reduce_mean(grad, axis=0)
+
+        v = grad_and_vars[0][1]
+        grad_and_var = (grad, v)
+
+        average_grads.append(grad_and_var)
+    return average_grads

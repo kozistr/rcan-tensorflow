@@ -65,6 +65,7 @@ def main():
                                 beta2=config.beta2,
                                 opt_eps=config.opt_epsilon,
                                 tf_log=config.summary,
+                                n_gpu=config.n_gpu,
                                 )
 
         # Initializing
@@ -95,7 +96,7 @@ def main():
         rcan_model.global_step.assign(tf.constant(global_step))
         start_epoch = global_step // (ds.n_images // config.batch_size)
 
-        best_loss = 1e8
+        best_loss = 2e2
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 x_lr = np.reshape(x_lr, (rcan_model.batch_size,) + rcan_model.lr_img_size)

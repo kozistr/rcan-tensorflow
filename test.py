@@ -54,6 +54,7 @@ def main():
                                 beta2=config.beta2,
                                 opt_eps=config.opt_epsilon,
                                 tf_log=config.summary,
+                                n_gpu=config.n_gpu,
                                 )
 
         # Initializing
