@@ -411,14 +411,14 @@ class DataIterator:
             perm = np.arange(self.num_examples)
             np.random.shuffle(perm)
 
-            self.x = self.x[perm]
-            self.y = self.y[perm]
+            self.x = self.x[perm, :, :, :]
+            self.y = self.y[perm, :, :, :]
 
             start = 0
             self.pointer = self.batch_size
 
         end = self.pointer
-        return self.x[start:end], self.y[start:end]
+        return self.x[start:end, :, :, :], self.y[start:end, :, :, :]
 
     def iterate(self):
         for step in range(self.num_batches):
