@@ -45,7 +45,7 @@ def main():
 
     # sample LR image
     rnd = np.random.randint(0, ds.n_images)
-    sample_x_lr = lr[rnd]
+    sample_x_lr = np.reshape(lr[rnd], (1,) + lr_shape)
 
     util.img_save(img=np.reshape(sample_x_lr, lr_shape), path=config.output_dir + "/sample_lr.png",
                   use_inverse=True)
@@ -56,8 +56,8 @@ def main():
 
     with tf.Session(config=tf_config) as sess:
         rcan_model = model.RCAN(sess=sess,
-                                lr_img_size=lr_shape[:1],
-                                hr_img_size=hr_shape[:1],
+                                lr_img_size=lr_shape[:-1],
+                                hr_img_size=hr_shape[:-1],
                                 batch_size=config.batch_size,
                                 img_scaling_factor=config.image_scaling_factor,
                                 n_res_blocks=config.n_res_blocks,
