@@ -109,6 +109,9 @@ def main():
         best_loss = 2e2
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
+                x_lr = np.reshape(x_lr, (-1,) + lr_shape)
+                x_hr = np.reshape(x_hr, (-1,) + hr_shape)
+
                 # training
                 _, loss = sess.run([rcan_model.opt, rcan_model.loss],
                                    feed_dict={
