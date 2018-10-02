@@ -76,7 +76,8 @@ def main():
         sample_x_lr = lr[rnd]
         sample_x_lr = np.reshape(sample_x_lr, (1,) + rcan_model.lr_img_size)  # (1, 96, 96, 3)
 
-        util.img_save(img=sample_x_lr, path=config.outout_dir + "/sample_lr.png", use_inverse=True)
+        util.img_save(img=np.reshape(sample_x_lr, rcan_model.lr_img_size), path=config.output_dir + "/sample_lr.png",
+                      use_inverse=True)
 
         # Load model & Graph & Weights
         global_step = 0
