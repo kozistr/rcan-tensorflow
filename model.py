@@ -80,7 +80,13 @@ class RCAN:
         self.merged = None
         self.writer = None
 
-        assert len(self.lr_img_size) == 2 and len(self.hr_img_size) == 2
+        try:
+            assert len(self.lr_img_size) == 2 and len(self.hr_img_size) == 2
+        except AssertionError:
+            raise AssertionError("[-] lr, hr image shape must be 2d for params (len : %d, %d)" % (
+                len(self.lr_img_size),
+                len(self.hr_img_size),
+            ))
 
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
 
