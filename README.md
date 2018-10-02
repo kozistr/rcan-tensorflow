@@ -49,5 +49,9 @@ Here're the proposed architectures in the paper.
 ## Results
 * OOM on my machine :(... I can't test my code, but maybe code runs fine.
 
+## To-Do
+1. Data Augmentation (rotated by 90, 180, 280 degrees)
+2. splitting into 16 patches (48x48) as input
+
 ## Author
 HyeongChan Kim / [@kozistr](http://kozistr.tech)
