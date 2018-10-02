@@ -56,8 +56,6 @@ def main():
 
     with tf.Session(config=tf_config) as sess:
         rcan_model = model.RCAN(sess=sess,
-                                lr_img_size=lr_shape[:-1],
-                                hr_img_size=hr_shape[:-1],
                                 batch_size=config.batch_size,
                                 img_scaling_factor=config.image_scaling_factor,
                                 n_res_blocks=config.n_res_blocks,
