@@ -80,6 +80,8 @@ class RCAN:
         self.merged = None
         self.writer = None
 
+        assert len(self.lr_img_size) == 2 and len(self.hr_img_size) == 2
+
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
 
         # tensor placeholder for input

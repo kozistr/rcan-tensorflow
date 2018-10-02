@@ -37,11 +37,8 @@ def main():
     lr_shape = (ds.lr_height, ds.lr_width, ds.channel)
     hr_shape = (ds.hr_height, ds.hr_width, ds.channel)
 
-    lr = np.reshape(lr, (-1,) + lr_shape)
-    hr = np.reshape(hr, (-1,) + hr_shape)
-
-    print("[+] Loaded LR image ", lr.shape)
-    print("[+] Loaded HR image ", hr.shape)
+    print("[+] Loaded LR image ", lr_shape)
+    print("[+] Loaded HR image ", hr_shape)
 
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
