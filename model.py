@@ -72,6 +72,7 @@ class RCAN:
 
         self.act = None
         self.opt = None
+        self.train_op = None
         self.loss = None
         self.output = None
 
@@ -118,9 +119,10 @@ class RCAN:
 
     def image_process(self, x, sign=-1):
         r, g, b = tf.split(x, 3, 3)
-        rgb = tf.concat([r + sign * self.rgb_mean[0],
-                         g + sign * self.rgb_mean[1],
-                         b + sign * self.rgb_mean[2]], axis=3)
+        # Sub/Add the mean value
+        rgb = tf.concat([r + sign * self.rgb_mean[0] * 255.,
+                         g + sign * self.rgb_mean[1] * 255.,
+                         b + sign * self.rgb_mean[2] * 255.], axis=3)
         return rgb
 
     def channel_attention(self, x, f, reduction, name):
@@ -156,7 +158,7 @@ class RCAN:
             x = tf.layers.BatchNormalization(epsilon=self._eps, trainable=is_train, name="bn-2")(x) if use_bn else x
 
             x = self.channel_attention(x, f, reduction, name="RCAB-%s" % name)
-            return self.res_scale * skip_conn + x
+            return skip_conn + self.res_scale * x
 
     def residual_group(self, x, f, kernel_size, reduction, use_bn, name, is_train=True):
         with tf.variable_scope("RG-%s" % name):
@@ -190,8 +192,9 @@ class RCAN:
                 raise NotImplementedError("[-] Not supported scaling factor (%d)" % scale_factor)
             return x
 
-    def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale, is_train=True):
-        with tf.variable_scope("Residual_Channel_Attention_Network"):
+    def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale,
+                                           is_train=True, reuse=False, gpu_idx=0):
+        with tf.variable_scope("Residual_Channel_Attention_Network-gpu%d" % gpu_idx, reuse=reuse):
             x = self.image_process(x, sign=-1)
 
             # 1. head
@@ -215,24 +218,37 @@ class RCAN:
 
     def build_model(self):
         # RCAN model
-        self.output = self.residual_channel_attention_network(x=self.x_lr,
-                                                              f=self.n_filters,
-                                                              kernel_size=self.kernel_size,
-                                                              reduction=self.reduction,
-                                                              use_bn=self.use_bn,
-                                                              scale=self.img_scale,
-                                                              is_train=self.is_train)
+        grads_list = []
+        for n_gpu in range(self.n_gpu):
+            print("[*] creating gpu @ %d" % (n_gpu + 1))
 
-        # l1 loss
-        self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
+            # To-Do
+            # multi-gpu with tensorflow.cll all_sum() is more efficient.
+            with tf.device(tf.DeviceSpec(device_type="GPU", device_index=n_gpu)):
+                self.output = self.residual_channel_attention_network(x=self.x_lr,
+                                                                      f=self.n_filters,
+                                                                      kernel_size=self.kernel_size,
+                                                                      reduction=self.reduction,
+                                                                      use_bn=self.use_bn,
+                                                                      scale=self.img_scale,
+                                                                      is_train=self.is_train,
+                                                                      gpu_idx=n_gpu)
+
+                # l1 loss
+                self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
+
+                # compute grads at each GPU
+                grads_list.append(self.opt.compute_gradients(self.loss))
+
+        grads = tfutil.average_gradients(grads_list)
+        self.train_op = self.opt.apply_gradients(grads, global_step=self.global_step)
 
         # optimizer
-        self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
-        # grads = self.opt.compute_gradients(self.loss)
+        # self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
 
         # metrics
-        psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr))
-        ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr))
+        psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=255))
+        ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=255))
 
         # summaries
         tf.summary.scalar("loss/l1_loss", self.loss)

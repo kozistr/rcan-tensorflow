@@ -78,7 +78,7 @@ def pixel_shuffle(x, scaling_factor):
 
 def average_gradients(grads):
     average_grads = []
-    for grad_and_vars in zip(**grads):
+    for grad_and_vars in zip(*grads):
         grads = [tf.expand_dims(g, axis=0) for g, _ in grad_and_vars]
 
         grad = tf.concat(grads, axis=0)

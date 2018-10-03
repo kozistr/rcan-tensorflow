@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import argparse
 import time
+import os
 
 import model
 import util
@@ -35,13 +36,13 @@ def main():
                  use_save=True,
                  save_type="to_h5",
                  save_file_name=config.data_dir + "DIV2K",
-                 use_img_scale=True)
+                 use_img_scale=False)
     """
     ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
                  ds_lr_path=config.data_dir + "DIV2K-lr.h5",
-                 use_img_scale=True)
+                 use_img_scale=False)
 
-    hr, lr = ds.hr_images, ds.lr_images  # [0, 1] scaled images
+    hr, lr = ds.hr_images, ds.lr_images  # [0, 255] scaled images
 
     lr_shape = (ds.lr_height, ds.lr_width, ds.channel)
     hr_shape = (ds.hr_height, ds.hr_width, ds.channel)
@@ -70,12 +71,15 @@ def main():
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
 
+    if not os.path.exists(config.output_dir):
+        os.mkdir(config.output_dir)
+
     # sample LR image
     rnd = np.random.randint(0, ds.n_images)
     sample_x_lr = np.reshape(lr[rnd], (1,) + lr_shape)
 
     util.img_save(img=np.reshape(sample_x_lr, lr_shape), path=config.output_dir + "/sample_lr.png",
-                  use_inverse=True)
+                  use_inverse=False)
 
     # gpu config
     gpu_config = tf.GPUOptions(allow_growth=True)
@@ -134,7 +138,7 @@ def main():
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 # training
-                _, loss = sess.run([rcan_model.opt, rcan_model.loss],
+                _, loss = sess.run([rcan_model.train_op, rcan_model.loss],
                                    feed_dict={
                                        rcan_model.x_lr: x_lr,
                                        rcan_model.x_hr: x_hr,
@@ -164,7 +168,7 @@ def main():
                                       })
                     output = np.reshape(output, rcan_model.hr_img_size)
                     util.img_save(img=output, path=config.output_dir + "/%d.png" % global_step,
-                                  use_inverse=True)
+                                  use_inverse=False)
 
                     # model save
                     rcan_model.saver.save(sess, config.summary, global_step)
