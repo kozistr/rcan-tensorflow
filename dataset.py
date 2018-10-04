@@ -295,7 +295,7 @@ class Div2KDataSet:
                  n_patch=16, use_split=False, split_rate=0.1, random_state=42, n_threads=8,
                  ds_path=None, ds_name=None, use_img_scale=False,
                  ds_hr_path=None, ds_lr_path=None,
-                 use_save=False, save_type='to_h5', save_file_name=None):
+                 use_save=False, save_type='to_h5', save_file_name=None, debug=False):
 
         """
         # General Settings
@@ -321,6 +321,7 @@ class Div2KDataSet:
         :param use_save: saving into another file format
         :param save_type: file format to save
         :param save_file_name: file name to save
+        :param debug: debugging messages, default False
         """
 
         self.hr_height = hr_height
@@ -357,6 +358,7 @@ class Div2KDataSet:
         self.use_save = use_save
         self.save_type = save_type
         self.save_file_name = save_file_name
+        self.debug = debug
 
         try:
             if self.use_save:
@@ -383,6 +385,7 @@ class Div2KDataSet:
                                        use_image_scaling=self.use_img_scaling,
                                        image_scale='0,1',
                                        img_save_method=cv2.INTER_LINEAR).raw_data  # numpy arrays
+        self.patch_hr_images = None
 
         self.lr_images = DataSetLoader(path=self.ds_lr_path,
                                        size=self.lr_shape,
@@ -392,6 +395,7 @@ class Div2KDataSet:
                                        use_image_scaling=self.use_img_scaling,
                                        image_scale='0,1',
                                        img_save_method=cv2.INTER_CUBIC).raw_data  # numpy arrays
+        self.patch_lr_images = None
 
         if self.n_patch > 0:
             patch_size = int(np.sqrt(self.n_patch))
@@ -411,6 +415,23 @@ class Div2KDataSet:
                 for n_ps in range(self.n_patch):
                     self.patch_hr_images[i * self.n_patch + n_ps] = hr_patches[n_ps]
                     self.patch_lr_images[i * self.n_patch + n_ps] = lr_patches[n_ps]
+
+                if self.debug:
+                    import matplotlib.pyplot as plt
+
+                    fig = plt.figure()
+                    for j in range(self.n_patch):
+                        fig.add_subplot(4, 4, j + 1)
+                        plt.imshow(self.patch_hr_images[j, :, :, :])
+                    plt.show()
+
+                    fig = plt.figure()
+                    for j in range(self.n_patch):
+                        fig.add_subplot(4, 4, j + 1)
+                        plt.imshow(self.patch_lr_images[j, :, :, :])
+                    plt.show()
+
+                    self.debug = False
 
 
 class DataIterator:

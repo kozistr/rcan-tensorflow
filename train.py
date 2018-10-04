@@ -38,37 +38,40 @@ def main():
                      save_file_name=config.data_dir + "DIV2K",
                      use_img_scale=False,
                      n_patch=config.patch_size)
-    else:
+    else:  # .h5 files
         ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
                      ds_lr_path=config.data_dir + "DIV2K-lr.h5",
                      use_img_scale=False,
                      n_patch=config.patch_size)
 
-    hr, lr = ds.patch_hr_images, ds.patch_lr_images  # [0, 255] scaled images
+    if config.patch_size > 0:
+        hr, lr = ds.patch_hr_images, ds.patch_lr_images  # [0, 255] scaled images
+    else:
+        hr, lr = ds.hr_images, ds.lr_images
 
-    lr_shape = (ds.lr_height, ds.lr_width, ds.channel)
-    hr_shape = (ds.hr_height, ds.hr_width, ds.channel)
+    lr_shape = lr.shape[1:]
+    hr_shape = hr.shape[1:]
 
-    lr = np.reshape(lr, (-1,) + lr_shape)
-    hr = np.reshape(hr, (-1,) + hr_shape)
+    print("[+] Loaded LR patch image ", lr.shape)
+    print("[+] Loaded HR patch image ", hr.shape)
 
-    print("[+] Loaded LR image ", lr_shape)
-    print("[+] Loaded HR image ", hr_shape)
-
-    # DataIterator
-    di = DataIterator(lr, hr, config.batch_size)
-
+    # setup directory
     if not os.path.exists(config.output_dir):
         os.mkdir(config.output_dir)
 
     # sample LR image
-    rnd = np.random.randint(0, ds.n_images)
-    sample_lr = np.reshape(lr[rnd], lr_shape)
+    patch = int(np.sqrt(config.patch_size))
 
-    util.img_save(img=sample_lr, path=config.output_dir + "/sample_lr.png",
+    rnd = np.random.randint(0, ds.n_images)
+    sample_lr = lr[config.patch_size * rnd:config.patch_size * (rnd + 1), :, :, :]
+    sample_lr = np.reshape(sample_lr, (config.patch_size,) + lr_shape)  # (16,) + lr_shape
+
+    util.img_save(img=util.merge(sample_lr, (patch, patch)),
+                  path=config.output_dir + "/sample_lr.png",
                   use_inverse=False)
 
-    patch_sample_lr = util.split(sample_lr, config.patch_size)  # (16,) + lr_shape
+    # DataIterator
+    di = DataIterator(lr, hr, config.batch_size)
 
     # gpu config
     gpu_config = tf.GPUOptions(allow_growth=True)
@@ -123,7 +126,7 @@ def main():
         rcan_model.global_step.assign(tf.constant(global_step))
         start_epoch = global_step // (ds.n_images // config.batch_size)
 
-        best_loss = 2e2
+        best_loss = 1e3
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 # training
@@ -149,18 +152,14 @@ def main():
                     rcan_model.writer.add_summary(summary, global_step)
 
                     # output
-                    hr_patches = []
-                    for i in range(config.patch_size):
-                        output = sess.run(rcan_model.output,
-                                          feed_dict={
-                                              rcan_model.x_lr: patch_sample_lr[i, :, :, :],
-                                              rcan_model.lr: lr,
-                                              rcan_model.is_train: False,
-                                          })
-                        output = np.reshape(output, rcan_model.hr_img_size)
-                        hr_patches.append(output)
+                    output = sess.run(rcan_model.output,
+                                      feed_dict={
+                                          rcan_model.x_lr: sample_lr,
+                                          rcan_model.lr: lr,
+                                          rcan_model.is_train: False,
+                                      })
 
-                    util.img_save(img=util.merge(hr_patches, int(np.sqrt(config.patch_size))),
+                    util.img_save(img=util.merge(output, (patch, patch)),
                                   path=config.output_dir + "/%d.png" % global_step,
                                   use_inverse=False)
 

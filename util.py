@@ -31,9 +31,9 @@ def merge(images, size):
 
     img = np.zeros((h * size[0], w * size[1], 3))
     for idx, image in enumerate(images):
-        i = idx % size[1]
+        i = idx % size[0]
         j = idx // size[1]
-        img[j * h:j * h + h, i * w:i * w + w, :] = image
+        img[h * j:h * (j + 1), w * i:w * (i + 1), :] = image
     return img
 
 
@@ -44,7 +44,7 @@ def split(image, n_patch=16):
     patch = int(np.sqrt(n_patch))
     patch_size = h // patch
 
-    patch_images = [image[patch_size * i: patch_size * (i + 1), patch_size * j: patch_size * (j + 1), :]
+    patch_images = [image[patch_size * j: patch_size * (j + 1), patch_size * i: patch_size * (i + 1), :]
                     for j in range(patch) for i in range(patch)]
     return patch_images
 

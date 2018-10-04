@@ -244,11 +244,6 @@ class RCAN:
         grads = tfutil.average_gradients(grads_list)
         self.train_op = self.opt.apply_gradients(grads, global_step=self.global_step)
 
-        # optimizer
-        # self.opt = self.opt.minimize(self.loss, global_step=self.global_step)
-
-        # clip
-
         # metrics
         psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=255))
         ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=255))
