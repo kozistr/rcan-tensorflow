@@ -37,12 +37,12 @@ def main():
                      save_type="to_h5",
                      save_file_name=config.data_dir + "DIV2K",
                      use_img_scale=False,
-                     n_patch=config.n_patch)
+                     n_patch=config.patch_size)
     else:
         ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
                      ds_lr_path=config.data_dir + "DIV2K-lr.h5",
                      use_img_scale=False,
-                     n_patch=config.n_patch)
+                     n_patch=config.patch_size)
 
     hr, lr = ds.patch_hr_images, ds.patch_lr_images  # [0, 255] scaled images
 
@@ -68,7 +68,7 @@ def main():
     util.img_save(img=sample_lr, path=config.output_dir + "/sample_lr.png",
                   use_inverse=False)
 
-    patch_sample_lr = util.split(sample_lr, config.n_patch)  # (16,) + lr_shape
+    patch_sample_lr = util.split(sample_lr, config.patch_size)  # (16,) + lr_shape
 
     # gpu config
     gpu_config = tf.GPUOptions(allow_growth=True)
@@ -150,7 +150,7 @@ def main():
 
                     # output
                     hr_patches = []
-                    for i in range(config.n_patch):
+                    for i in range(config.patch_size):
                         output = sess.run(rcan_model.output,
                                           feed_dict={
                                               rcan_model.x_lr: patch_sample_lr[i, :, :, :],
@@ -160,7 +160,7 @@ def main():
                         output = np.reshape(output, rcan_model.hr_img_size)
                         hr_patches.append(output)
 
-                    util.img_save(img=util.merge(hr_patches, int(np.sqrt(config.n_patch))),
+                    util.img_save(img=util.merge(hr_patches, int(np.sqrt(config.patch_size))),
                                   path=config.output_dir + "/%d.png" % global_step,
                                   use_inverse=False)
 
