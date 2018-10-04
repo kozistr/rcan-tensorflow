@@ -53,6 +53,7 @@ data_arg = add_arg_group('Data')
 data_arg.add_argument('--data_dir', type=str, default="D://DataSet//DIV2K//")
 data_arg.add_argument('--output_dir', type=str, default='./output/')
 data_arg.add_argument('--summary', type=str, default='./log/')
+data_arg.add_argument('--patch_size', type=int, default=16)
 
 # Misc
 misc_arg = add_arg_group('Misc')

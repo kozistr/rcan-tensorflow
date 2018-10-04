@@ -14,10 +14,10 @@ import util
 
 # Argument
 parser = argparse.ArgumentParser()
-parser.add_argument('--resize_to', type=int, default=0)
+parser.add_argument('--data_from', type=str, default='img', choices=['img', 'h5'])
 args = parser.parse_args()
 
-resize_to = args.resize_to
+data_from = args.data_from
 
 # Configuration
 config, _ = get_config()
@@ -30,40 +30,27 @@ def main():
     start_time = time.time()  # Clocking start
 
     # Div2K - Track 1: Bicubic downscaling - x4 DataSet load
-    """
-    ds = DataSet(ds_path=config.data_dir,
-                 ds_name="X4",
-                 use_save=True,
-                 save_type="to_h5",
-                 save_file_name=config.data_dir + "DIV2K",
-                 use_img_scale=False)
-    """
-    ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
-                 ds_lr_path=config.data_dir + "DIV2K-lr.h5",
-                 use_img_scale=False)
+    if data_from == 'img':
+        ds = DataSet(ds_path=config.data_dir,
+                     ds_name="X4",
+                     use_save=True,
+                     save_type="to_h5",
+                     save_file_name=config.data_dir + "DIV2K",
+                     use_img_scale=False,
+                     n_patch=config.n_patch)
+    else:
+        ds = DataSet(ds_hr_path=config.data_dir + "DIV2K-hr.h5",
+                     ds_lr_path=config.data_dir + "DIV2K-lr.h5",
+                     use_img_scale=False,
+                     n_patch=config.n_patch)
 
-    hr, lr = ds.hr_images, ds.lr_images  # [0, 255] scaled images
+    hr, lr = ds.patch_hr_images, ds.patch_lr_images  # [0, 255] scaled images
 
     lr_shape = (ds.lr_height, ds.lr_width, ds.channel)
     hr_shape = (ds.hr_height, ds.hr_width, ds.channel)
 
     lr = np.reshape(lr, (-1,) + lr_shape)
     hr = np.reshape(hr, (-1,) + hr_shape)
-
-    if not resize_to == 0:
-        import cv2
-
-        lr_shape = (resize_to, resize_to, ds.channel)
-        hr_shape = (resize_to * config.image_scaling_factor, resize_to * config.image_scaling_factor, ds.channel)
-
-        new_lr = np.zeros((ds.n_images,) + lr_shape, dtype=np.float32)
-        new_hr = np.zeros((ds.n_images,) + hr_shape, dtype=np.float32)
-        for idx in range(ds.n_images):
-            new_lr[idx] = cv2.resize(lr[idx], lr_shape[:-1], cv2.INTER_CUBIC)
-            new_hr[idx] = cv2.resize(hr[idx], hr_shape[:-1], cv2.INTER_LINEAR)
-
-        hr = new_hr
-        lr = new_lr
 
     print("[+] Loaded LR image ", lr_shape)
     print("[+] Loaded HR image ", hr_shape)
@@ -76,10 +63,12 @@ def main():
 
     # sample LR image
     rnd = np.random.randint(0, ds.n_images)
-    sample_x_lr = np.reshape(lr[rnd], (1,) + lr_shape)
+    sample_lr = np.reshape(lr[rnd], lr_shape)
 
-    util.img_save(img=np.reshape(sample_x_lr, lr_shape), path=config.output_dir + "/sample_lr.png",
+    util.img_save(img=sample_lr, path=config.output_dir + "/sample_lr.png",
                   use_inverse=False)
+
+    patch_sample_lr = util.split(sample_lr, config.n_patch)  # (16,) + lr_shape
 
     # gpu config
     gpu_config = tf.GPUOptions(allow_growth=True)
@@ -160,14 +149,19 @@ def main():
                     rcan_model.writer.add_summary(summary, global_step)
 
                     # output
-                    output = sess.run(rcan_model.output,
-                                      feed_dict={
-                                          rcan_model.x_lr: sample_x_lr,
-                                          rcan_model.lr: lr,
-                                          rcan_model.is_train: False,
-                                      })
-                    output = np.reshape(output, rcan_model.hr_img_size)
-                    util.img_save(img=output, path=config.output_dir + "/%d.png" % global_step,
+                    hr_patches = []
+                    for i in range(config.n_patch):
+                        output = sess.run(rcan_model.output,
+                                          feed_dict={
+                                              rcan_model.x_lr: patch_sample_lr[i, :, :, :],
+                                              rcan_model.lr: lr,
+                                              rcan_model.is_train: False,
+                                          })
+                        output = np.reshape(output, rcan_model.hr_img_size)
+                        hr_patches.append(output)
+
+                    util.img_save(img=util.merge(hr_patches, int(np.sqrt(config.n_patch))),
+                                  path=config.output_dir + "/%d.png" % global_step,
                                   use_inverse=False)
 
                     # model save

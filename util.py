@@ -37,6 +37,18 @@ def merge(images, size):
     return img
 
 
+def split(image, n_patch=16):
+    h, w, c = image.shape
+    assert h == w
+
+    patch = int(np.sqrt(n_patch))
+    patch_size = h // patch
+
+    patch_images = [image[patch_size * i: patch_size * (i + 1), patch_size * j: patch_size * (j + 1), :]
+                    for j in range(patch) for i in range(patch)]
+    return patch_images
+
+
 def save_image(images, size, path):
     return scipy.misc.imsave(path, merge(images, size))
 

@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from glob import glob
 from tqdm import tqdm
+from util import split
 from config import get_config
 from multiprocessing import Pool
 
@@ -78,7 +79,7 @@ class DataSetLoader:
 
     def __init__(self, path, size=None, name='to_tfr', use_save=False, save_file_name='',
                  buffer_size=4096, n_threads=8,
-                 use_image_scaling=True, image_scale='0,1', img_save_method=cv2.INTER_LINEAR, debug=True):
+                 use_image_scaling=False, image_scale='0,1', img_save_method=cv2.INTER_LINEAR, debug=True):
 
         self.op = name.split('_')
         self.debug = debug
@@ -290,22 +291,23 @@ class DataSetLoader:
 
 class Div2KDataSet:
 
-    def __init__(self, hr_height=384, hr_width=384, lr_height=96, lr_width=96, channel=3,
-                 use_split=False, split_rate=0.1, random_state=42, n_threads=8,
-                 ds_path=None, ds_name=None, use_img_scale=True,
+    def __init__(self, hr_height=768, hr_width=768, lr_height=192, lr_width=192, channel=3,
+                 n_patch=16, use_split=False, split_rate=0.1, random_state=42, n_threads=8,
+                 ds_path=None, ds_name=None, use_img_scale=False,
                  ds_hr_path=None, ds_lr_path=None,
                  use_save=False, save_type='to_h5', save_file_name=None):
 
         """
         # General Settings
-        :param hr_height: input HR image height, default 384
-        :param hr_width: input HR image width, default 384
-        :param lr_height: input LR image height, default 96
-        :param lr_width: input LR image width, default 96
+        :param hr_height: input HR image height, default 768
+        :param hr_width: input HR image width, default 768
+        :param lr_height: input LR image height, default 192
+        :param lr_width: input LR image width, default 192
         :param channel: input image channel, default 3 (RGB)
-        - in case of Div2K - ds x4, image size is 384 x 384 x 3 (HWC).
+        - in case of Div2K - ds x4, image size is 768 x 768 x 3 (HWC).
 
         # Pre-Processing Option
+        :param n_patch: patch size to crop, default 16
         :param split_rate: image split rate (into train & test), default 0.1
         :param random_state: random seed for shuffling, default 42
         :param n_threads: the number of threads for multi-threading, default 8
@@ -313,7 +315,7 @@ class Div2KDataSet:
         # DataSet Option
         :param ds_path: DataSet's Path, default None
         :param ds_name: DataSet's Name, default None
-        :param use_img_scale: using img scaling?
+        :param use_img_scale: using img scaling?, default False
         :param ds_hr_path: DataSet High Resolution path
         :param ds_lr_path: DataSet Low Resolution path
         :param use_save: saving into another file format
@@ -329,6 +331,7 @@ class Div2KDataSet:
         self.hr_shape = (self.hr_height, self.hr_width, self.channel)
         self.lr_shape = (self.lr_height, self.lr_width, self.channel)
 
+        self.n_patch = n_patch
         self.use_split = use_split
         self.split_rate = split_rate
         self.random_state = random_state
@@ -368,9 +371,9 @@ class Div2KDataSet:
 
         self.use_img_scaling = use_img_scale
 
-        if self.ds_path:  # like .h5 or .tfr
+        if self.ds_path:  # like .h5 or .tfr # will be in the same folder
             self.ds_hr_path = self.ds_path + "/DIV2K_train_HR/"
-            self.ds_lr_path = self.ds_hr_path  # self.ds_path + "/DIV2K_train_LR_bicubic/" + self.ds_name + "/"
+            self.ds_lr_path = self.ds_hr_path
 
         self.hr_images = DataSetLoader(path=self.ds_hr_path,
                                        size=self.hr_shape,
@@ -389,6 +392,25 @@ class Div2KDataSet:
                                        use_image_scaling=self.use_img_scaling,
                                        image_scale='0,1',
                                        img_save_method=cv2.INTER_CUBIC).raw_data  # numpy arrays
+
+        if self.n_patch > 0:
+            patch_size = int(np.sqrt(self.n_patch))
+
+            self.patch_hr_images = np.zeros((self.n_images * self.n_patch,
+                                             self.hr_height // patch_size, self.hr_width // patch_size, self.channel),
+                                            dtype=np.uint8)
+
+            self.patch_lr_images = np.zeros((self.n_images * self.n_patch,
+                                             self.lr_height // patch_size, self.lr_width // patch_size, self.channel),
+                                            dtype=np.uint8)
+
+            for i in tqdm(range(self.n_images)):
+                hr_patches = split(self.hr_images[i, :, :, :], self.n_patch)
+                lr_patches = split(self.lr_images[i, :, :, :], self.n_patch)
+
+                for n_ps in range(self.n_patch):
+                    self.patch_hr_images[i * self.n_patch + n_ps] = hr_patches[n_ps]
+                    self.patch_lr_images[i * self.n_patch + n_ps] = lr_patches[n_ps]
 
 
 class DataIterator:
