@@ -39,7 +39,7 @@ class DataSetLoader:
     @staticmethod
     def get_img(path, size=(64, 64), interp=cv2.INTER_CUBIC):
         img = cv2.imread(path, cv2.IMREAD_COLOR)[..., ::-1]  # BGR to RGB
-        if img.shape[0] == size[0]:
+        if img.shape[:1] == size:
             return img
         else:
             return cv2.resize(img, size, interp)
