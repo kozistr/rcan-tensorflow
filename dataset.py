@@ -405,8 +405,8 @@ class Div2KDataSet:
                                             dtype=np.uint8)
 
             for i in tqdm(range(self.n_images)):
-                hr_patches = split(self.hr_images[i, :, :, :], self.n_patch)
-                lr_patches = split(self.lr_images[i, :, :, :], self.n_patch)
+                hr_patches = split(np.reshape(self.hr_images[i, :], self.hr_shape), self.n_patch)
+                lr_patches = split(np.reshape(self.lr_images[i, :], self.lr_shape), self.n_patch)
 
                 for n_ps in range(self.n_patch):
                     self.patch_hr_images[i * self.n_patch + n_ps] = hr_patches[n_ps]
