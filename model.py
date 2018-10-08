@@ -76,6 +76,9 @@ class RCAN:
         self.loss = None
         self.output = None
 
+        self.psnr = None
+        self.ssim = None
+
         self.saver = None
         self.best_saver = None
         self.merged = None
@@ -120,9 +123,9 @@ class RCAN:
     def image_process(self, x, sign=-1):
         r, g, b = tf.split(x, 3, 3)
         # Sub/Add the mean value
-        rgb = tf.concat([r + sign * self.rgb_mean[0] * 255.,
-                         g + sign * self.rgb_mean[1] * 255.,
-                         b + sign * self.rgb_mean[2] * 255.], axis=3)
+        rgb = tf.concat([r + sign * self.rgb_mean[0],
+                         g + sign * self.rgb_mean[1],
+                         b + sign * self.rgb_mean[2]], axis=3)
         return rgb
 
     def channel_attention(self, x, f, reduction, name):
@@ -135,7 +138,7 @@ class RCAN:
         :return: output layer
         """
         with tf.variable_scope("CA-%s" % name):
-            skip_conn = x
+            skip_conn = tf.identity(x, name='identity')
 
             x = tfutil.adaptive_global_average_pool_2d(x)
 
@@ -148,7 +151,7 @@ class RCAN:
 
     def residual_channel_attention_block(self, x, f, kernel_size, reduction, use_bn, name, is_train=True):
         with tf.variable_scope("RCAB-%s" % name):
-            skip_conn = x
+            skip_conn = tf.identity(x, name='identity')
 
             x = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-1")
             x = tf.layers.BatchNormalization(epsilon=self._eps, trainable=is_train, name="bn-1")(x) if use_bn else x
@@ -162,7 +165,7 @@ class RCAN:
 
     def residual_group(self, x, f, kernel_size, reduction, use_bn, name, is_train=True):
         with tf.variable_scope("RG-%s" % name):
-            skip_conn = x
+            skip_conn = tf.identity(x, name='identity')
 
             for i in range(self.n_res_blocks):
                 x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i),
@@ -171,7 +174,7 @@ class RCAN:
             x = tfutil.conv2d(x, f=f, k=kernel_size)
             return skip_conn + x
 
-    def image_scaling(self, x, f, scale_factor, name):
+    def up_scaling(self, x, f, scale_factor, name):
         """
         :param x: image
         :param f: conv2d filter
@@ -195,7 +198,7 @@ class RCAN:
     def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale,
                                            is_train=True, reuse=False, gpu_idx=0):
         with tf.variable_scope("Residual_Channel_Attention_Network-gpu%d" % gpu_idx, reuse=reuse):
-            x = self.image_process(x, sign=-1)
+            # x = self.image_process(x, sign=-1)
 
             # 1. head
             head = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-head")
@@ -209,15 +212,16 @@ class RCAN:
             body += head
 
             # 3. tail
-            x = body
-            x = self.image_scaling(x, f, scale, name='up-scaling')
+            x = self.up_scaling(body, f, scale, name='up-scaling')
             tail = tfutil.conv2d(x, f=self.n_channel, k=kernel_size, name="conv2d-tail")  # (-1, 384, 384, 3)
 
-            x = self.image_process(tail, sign=1)
+            # x = self.image_process(tail, sign=1)
+            x = tf.nn.sigmoid(tail)
             return x
 
     def build_model(self):
         # RCAN model
+        """
         grads_list = []
         for n_gpu in range(self.n_gpu):
             print("[*] creating gpu @ %d" % (n_gpu + 1))
@@ -243,15 +247,31 @@ class RCAN:
 
         grads = tfutil.average_gradients(grads_list)
         self.train_op = self.opt.apply_gradients(grads, global_step=self.global_step)
+        """
+
+        self.output = self.residual_channel_attention_network(x=self.x_lr,
+                                                              f=self.n_filters,
+                                                              kernel_size=self.kernel_size,
+                                                              reduction=self.reduction,
+                                                              use_bn=self.use_bn,
+                                                              scale=self.img_scale,
+                                                              is_train=self.is_train
+                                                              )
+        self.output = tf.clip_by_value(self.output, 0, 1)
+
+        # l1 loss
+        self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
+
+        self.train_op = self.opt.minimize(self.loss)
 
         # metrics
-        psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=255))
-        ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=255))
+        self.psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=1))
+        self.ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=1))
 
         # summaries
         tf.summary.scalar("loss/l1_loss", self.loss)
-        tf.summary.scalar("metric/psnr", psnr)
-        tf.summary.scalar("metric/ssim", ssim)
+        tf.summary.scalar("metric/psnr", self.psnr)
+        tf.summary.scalar("metric/ssim", self.ssim)
         tf.summary.scalar("misc/lr", self.lr)
 
         # merge summary

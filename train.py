@@ -45,7 +45,7 @@ def main():
                      n_patch=config.patch_size)
 
     if config.patch_size > 0:
-        hr, lr = ds.patch_hr_images, ds.patch_lr_images  # [0, 255] scaled images
+        hr, lr = ds.patch_hr_images, ds.patch_lr_images  # [0, 1] scaled images
     else:
         hr, lr = ds.hr_images, ds.lr_images
 
@@ -68,7 +68,8 @@ def main():
 
     util.img_save(img=util.merge(sample_lr, (patch, patch)),
                   path=config.output_dir + "/sample_lr.png",
-                  use_inverse=False)
+                  use_inverse=False,
+                  )
 
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
@@ -126,20 +127,24 @@ def main():
         rcan_model.global_step.assign(tf.constant(global_step))
         start_epoch = global_step // (ds.n_images // config.batch_size)
 
-        best_loss = 1e3
+        best_loss = 1e2
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
+                x_lr = np.true_divide(x_lr, 255.0, casting='unsafe')
+                x_hr = np.true_divide(x_hr, 255.0, casting='unsafe')
+
                 # training
-                _, loss = sess.run([rcan_model.train_op, rcan_model.loss],
-                                   feed_dict={
-                                       rcan_model.x_lr: x_lr,
-                                       rcan_model.x_hr: x_hr,
-                                       rcan_model.lr: lr,
-                                       rcan_model.is_train: True,
-                                   })
+                _, loss, psnr, ssim = sess.run([rcan_model.train_op, rcan_model.loss, rcan_model.psnr, rcan_model.ssim],
+                                               feed_dict={
+                                                   rcan_model.x_lr: x_lr,
+                                                   rcan_model.x_hr: x_hr,
+                                                   rcan_model.lr: lr,
+                                                   rcan_model.is_train: True,
+                                               })
 
                 if global_step % config.logging_step == 0:
-                    print("[+] %d epochs %d steps" % (epoch, global_step), "loss : {:.8f}".format(loss))
+                    print("[+] %d epochs %d steps" % (epoch, global_step),
+                          "loss : {:.8f} PSNR : {:.4f} SSIM : {:.4f}".format(loss, psnr, ssim))
 
                     # summary
                     summary = sess.run(rcan_model.merged,
@@ -158,6 +163,7 @@ def main():
                                           rcan_model.lr: lr,
                                           rcan_model.is_train: False,
                                       })
+                    output *= 255.
 
                     util.img_save(img=util.merge(output, (patch, patch)),
                                   path=config.output_dir + "/%d.png" % global_step,
