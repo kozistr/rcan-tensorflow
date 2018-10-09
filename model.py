@@ -198,7 +198,7 @@ class RCAN:
     def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale,
                                            is_train=True, reuse=False, gpu_idx=0):
         with tf.variable_scope("Residual_Channel_Attention_Network-gpu%d" % gpu_idx, reuse=reuse):
-            # x = self.image_process(x, sign=-1)
+            x = self.image_process(x, sign=-1)
 
             # 1. head
             head = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-head")
@@ -215,40 +215,11 @@ class RCAN:
             x = self.up_scaling(body, f, scale, name='up-scaling')
             tail = tfutil.conv2d(x, f=self.n_channel, k=kernel_size, name="conv2d-tail")  # (-1, 384, 384, 3)
 
-            # x = self.image_process(tail, sign=1)
-            x = tf.nn.sigmoid(tail)
+            x = self.image_process(tail, sign=1)
             return x
 
     def build_model(self):
         # RCAN model
-        """
-        grads_list = []
-        for n_gpu in range(self.n_gpu):
-            print("[*] creating gpu @ %d" % (n_gpu + 1))
-
-            # To-Do
-            # multi-gpu with tensorflow.cll all_sum() is more efficient.
-            with tf.device(tf.DeviceSpec(device_type="GPU", device_index=n_gpu)):
-                self.output = self.residual_channel_attention_network(x=self.x_lr,
-                                                                      f=self.n_filters,
-                                                                      kernel_size=self.kernel_size,
-                                                                      reduction=self.reduction,
-                                                                      use_bn=self.use_bn,
-                                                                      scale=self.img_scale,
-                                                                      is_train=self.is_train,
-                                                                      gpu_idx=n_gpu)
-                self.output = tf.clip_by_value(self.output, 0., 255.)
-
-                # l1 loss
-                self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
-
-                # compute grads at each GPU
-                grads_list.append(self.opt.compute_gradients(self.loss))
-
-        grads = tfutil.average_gradients(grads_list)
-        self.train_op = self.opt.apply_gradients(grads, global_step=self.global_step)
-        """
-
         self.output = self.residual_channel_attention_network(x=self.x_lr,
                                                               f=self.n_filters,
                                                               kernel_size=self.kernel_size,
@@ -257,16 +228,16 @@ class RCAN:
                                                               scale=self.img_scale,
                                                               is_train=self.is_train
                                                               )
-        self.output = tf.clip_by_value(self.output, 0, 1)
+        self.output = tf.clip_by_value(self.output, 0, 255)
 
         # l1 loss
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
 
-        self.train_op = self.opt.minimize(self.loss)
+        self.train_op = self.opt.minimize(self.loss, global_step=self.global_step)
 
         # metrics
-        self.psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=1))
-        self.ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=1))
+        self.psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=255))
+        self.ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=255))
 
         # summaries
         tf.summary.scalar("loss/l1_loss", self.loss)

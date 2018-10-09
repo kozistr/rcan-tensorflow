@@ -130,9 +130,6 @@ def main():
         best_loss = 1e2
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
-                x_lr = np.true_divide(x_lr, 255.0, casting='unsafe')
-                x_hr = np.true_divide(x_hr, 255.0, casting='unsafe')
-
                 # training
                 _, loss, psnr, ssim = sess.run([rcan_model.train_op, rcan_model.loss, rcan_model.psnr, rcan_model.ssim],
                                                feed_dict={
@@ -163,7 +160,6 @@ def main():
                                           rcan_model.lr: lr,
                                           rcan_model.is_train: False,
                                       })
-                    output *= 255.
 
                     util.img_save(img=util.merge(output, (patch, patch)),
                                   path=config.output_dir + "/%d.png" % global_step,
