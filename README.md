@@ -35,19 +35,24 @@ Here're the proposed architectures in the paper.
 
 ## DataSet
 
-| DataSet |       LR      |       HR        |
-|  :---:  |   :-------:   |   :-------:     |
-|  DIV2K  |  800 (96x96)  |  800 (384x384)  |
+| DataSet |        LR       |        HR        |
+|  :---:  |    :-------:    |    :-------:     |
+|  DIV2K  |  800 (192x192)  |   800 (768x768)  |
  
 ## Usage
 ### training
     # hyper-paramters in config.py, you can edit them!
-    $ python3 train.py
+    $ python3 train.py --data_from [img or h5]
 ### testing
-    $ python3 test.py --src_image ./sample.png --dst_image sample-upscaled.png
+    $ python3 test.py --src_image sample.png --dst_image sample-upscaled.png
 
 ## Results
+
 * OOM on my machine :(... I can't test my code, but maybe code runs fine.
+
+| Example\Resolution | *192x192x3 image (sample)* | *768x768x3 image (generated)* |
+|    :-------:       |     :-------:     |     :-------:     |
+|  Example1  | ![img](./output/sample_lr.png) | ![img](./output/100000.png) |
 
 ## To-Do
 1. Data Augmentation (rotated by 90, 180, 280 degrees)
