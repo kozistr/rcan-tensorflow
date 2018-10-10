@@ -122,10 +122,9 @@ class RCAN:
 
     def image_processing(self, x, sign, name):
         with tf.variable_scope(name):
-            rgb_mean = tf.convert_to_tensor((sign * self.rgb_mean[0] * 255.,
-                                             sign * self.rgb_mean[1] * 255.,
-                                             sign * self.rgb_mean[2] * 255.),
-                                            dtype=tf.float32)
+            rgb_mean = (sign * self.rgb_mean[0] * 255.,
+                        sign * self.rgb_mean[1] * 255.,
+                        sign * self.rgb_mean[2] * 255.)
             x = tfutil.mean_shift(x, rgb_mean=rgb_mean)
             return x
 
