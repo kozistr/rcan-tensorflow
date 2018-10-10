@@ -78,11 +78,11 @@ def mean_shift(x, rgb_mean, f=3, k=1, s=1, pad='SAME', name='mean_shift'):
         weight = tf.get_variable(shape=weight_shape, trainable=False, name='ms_weight')
         weight.assign(tf.reshape(tf.eye(f), weight_shape))
 
-        bias_shape = [k, k, k, f]
+        bias_shape = [f]
         bias = tf.get_variable(shape=bias_shape, trainable=False, name='ms_bias')
         bias.assign(tf.reshape(rgb_mean, bias_shape))
 
-        x = tf.nn.conv2d(x, weight, strides=[1, 1, 1, 1], padding=pad, name='ms_conv2d')
+        x = tf.nn.conv2d(x, weight, strides=[1, s, s, 1], padding=pad, name='ms_conv2d')
         x = tf.nn.bias_add(x, bias)
         return x
 
