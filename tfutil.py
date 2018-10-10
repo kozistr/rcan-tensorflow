@@ -72,6 +72,21 @@ def pixel_shuffle(x, scaling_factor):
     return x
 
 
+def mean_shift(x, rgb_mean, f=3, k=1, s=1, pad='SAME', name='mean_shift'):
+    with tf.variable_scope(name):
+        weight_shape = [k, k, f, f]
+        weight = tf.get_variable(shape=weight_shape, trainable=False, name='ms_weight')
+        weight.assign(tf.reshape(tf.eye(f), weight_shape))
+
+        bias_shape = [k, k, k, f]
+        bias = tf.get_variable(shape=bias_shape, trainable=False, name='ms_bias')
+        bias.assign(tf.reshape(rgb_mean, bias_shape))
+
+        x = tf.nn.conv2d(x, weight, strides=s, padding=pad, name='ms_conv2d')
+        x = tf.nn.bias_add(x, bias)
+        return x
+
+
 # ---------------------------------------------------------------------------------------------
 # Gradients (for supporting multi-gpu in tensorflow)
 

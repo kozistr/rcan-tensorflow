@@ -113,20 +113,21 @@ class RCAN:
         # Optimizer
         if self.optimizer == 'adam':
             self.opt = tf.train.AdamOptimizer(learning_rate=self.lr,
-                                              beta1=self.beta1, beta2=self.beta2)
+                                              beta1=self.beta1, beta2=self.beta2, epsilon=self.opt_eps)
         elif self.optimizer == 'sgd':  # gonna use mm opt actually
             self.opt = tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=self.momentum)
             # self.opt = tf.train.GradientDescentOptimizer(learning_rate=self.lr)
         else:
             raise NotImplementedError("[-] Not supported optimizer (%s)" % self.optimizer)
 
-    def image_process(self, x, sign=-1):
-        r, g, b = tf.split(x, 3, 3)
-        # Sub/Add the mean value
-        rgb = tf.concat([r + sign * self.rgb_mean[0],
-                         g + sign * self.rgb_mean[1],
-                         b + sign * self.rgb_mean[2]], axis=3)
-        return rgb
+    def image_processing(self, x, sign, name):
+        with tf.variable_scope(name):
+            rgb_mean = tf.convert_to_tensor((sign * self.rgb_mean[0] * 255.,
+                                             sign * self.rgb_mean[1] * 255.,
+                                             sign * self.rgb_mean[2] * 255.),
+                                            dtype=tf.float32)
+            x = tfutil.mean_shift(x, rgb_mean=rgb_mean)
+            return x
 
     def channel_attention(self, x, f, reduction, name):
         """
@@ -198,7 +199,7 @@ class RCAN:
     def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale,
                                            is_train=True, reuse=False, gpu_idx=0):
         with tf.variable_scope("Residual_Channel_Attention_Network-gpu%d" % gpu_idx, reuse=reuse):
-            x = self.image_process(x, sign=-1)
+            x = self.image_processing(x, sign=-1, name='pre-processing')
 
             # 1. head
             head = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-head")
@@ -215,7 +216,7 @@ class RCAN:
             x = self.up_scaling(body, f, scale, name='up-scaling')
             tail = tfutil.conv2d(x, f=self.n_channel, k=kernel_size, name="conv2d-tail")  # (-1, 384, 384, 3)
 
-            x = self.image_process(tail, sign=1)
+            x = self.image_processing(tail, sign=1, name='post-processing')
             return x
 
     def build_model(self):
