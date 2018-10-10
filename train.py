@@ -60,16 +60,26 @@ def main():
         os.mkdir(config.output_dir)
 
     # sample LR image
-    patch = int(np.sqrt(config.patch_size))
+    if config.patch_size > 0:
+        patch = int(np.sqrt(config.patch_size))
 
-    rnd = np.random.randint(0, ds.n_images)
-    sample_lr = lr[config.patch_size * rnd:config.patch_size * (rnd + 1), :, :, :]
-    sample_lr = np.reshape(sample_lr, (config.patch_size,) + lr_shape)  # (16,) + lr_shape
+        rnd = np.random.randint(0, ds.n_images)
+        sample_lr = lr[config.patch_size * rnd:config.patch_size * (rnd + 1), :, :, :]
+        sample_lr = np.reshape(sample_lr, (config.patch_size,) + lr_shape)  # (16,) + lr_shape
 
-    util.img_save(img=util.merge(sample_lr, (patch, patch)),
-                  path=config.output_dir + "/sample_lr.png",
-                  use_inverse=False,
-                  )
+        util.img_save(img=util.merge(sample_lr, (patch, patch)),
+                      path=config.output_dir + "/sample_lr.png",
+                      use_inverse=False,
+                      )
+    else:
+        rnd = np.random.randint(0, ds.n_images)
+        sample_lr = lr[rnd]
+        sample_lr = np.reshape(sample_lr, lr_shape)  # lr_shape
+
+        util.img_save(img=sample_lr,
+                      path=config.output_dir + "/sample_lr.png",
+                      use_inverse=False,
+                      )
 
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
