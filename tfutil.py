@@ -75,8 +75,10 @@ def pixel_shuffle(x, scaling_factor):
 
 def mean_shift(x, rgb_mean, f=3, k=1, s=1, pad='SAME', name='mean_shift'):
     with tf.variable_scope(name):
-        weight = tf.get_variable(shape=[k, k, f, f], initializer=tf.constant_initializer(np.eye(f)), name='ms_weight')
-        bias = tf.get_variable(shape=[f], initializer=tf.constant_initializer(rgb_mean), name='ms_bias')
+        weight = tf.get_variable(shape=[k, k, f, f], initializer=tf.constant_initializer(np.eye(f)),
+                                 trainable=False, name='ms_weight')
+        bias = tf.get_variable(shape=[f], initializer=tf.constant_initializer(rgb_mean),
+                               trainable=False, name='ms_bias')
 
         x = tf.nn.conv2d(x, weight, strides=[1, s, s, 1], padding=pad, name='ms_conv2d')
         x = tf.nn.bias_add(x, bias)
