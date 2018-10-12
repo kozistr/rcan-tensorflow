@@ -52,10 +52,10 @@ Here're the proposed architectures in the paper.
 
 | Example\Resolution | *192x192x3 image (sample)* | *768x768x3 image (generated)* |
 |    :-------:       |     :-------:     |     :-------:     |
-|  Example1  | ![img](./output/sample_lr.png) | ![img](./output/100000.png) |
+|  Example1 (X4 scaled)  | ![img](./output/sample_lr.png) | ![img](./output/100000.png) |
 
 ## To-Do
-1. Data Augmentation (rotated by 90, 180, 280 degrees)
+1. None
 
 ## Author
 HyeongChan Kim / [@kozistr](http://kozistr.tech)
