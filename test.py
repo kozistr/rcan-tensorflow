@@ -1,4 +1,5 @@
 from config import get_config
+from util import split, merge, img_save
 
 import tensorflow as tf
 import numpy as np
@@ -6,7 +7,7 @@ import argparse
 import cv2
 
 import model
-import util
+
 
 # Configuration
 config, _ = get_config()
@@ -28,6 +29,9 @@ def get_img(path):
 def main():
     # load src image
     src_img = get_img(args.src_image)
+
+    # split src image
+    src_img = split(src_img, config.patch_size)
 
     # gpu config
     gpu_config = tf.GPUOptions(allow_growth=True)
@@ -69,7 +73,7 @@ def main():
 
         # feed_dict
         feed = {
-            rcan_model.x_lr: np.reshape(src_img, (1,) + rcan_model.lr_img_size),  # (1, 96, 96, 3)
+            rcan_model.x_lr: np.reshape(src_img, (config.patch_size,) + rcan_model.lr_img_size),  # (16, 96, 96, 3)
             rcan_model.lr: config.lr,  # dummy
             rcan_model.is_train: False,
         }
@@ -79,7 +83,8 @@ def main():
         output = np.reshape(output, rcan_model.hr_img_size)  # (384, 384, 3)
 
         # save result
-        util.img_save(output, (1, 1), args.dst_image, use_inverse=True)
+        patch = int(np.sqrt(config.patch_size))
+        img_save(merge(output, (patch, patch)), args.dst_image, use_inverse=False)
 
 
 if __name__ == "__main__":
