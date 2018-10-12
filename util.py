@@ -61,3 +61,9 @@ def save_images(images, size, image_path, inv_type='255', use_inverse=False):
 def img_save(img, path, inv_type='255', use_inverse=False):
     img = inverse_transform(img, inv_type) if use_inverse else img
     return scipy.misc.imsave(path, img)
+
+
+def rotate(images):
+    images = np.append(images, [np.fliplr(image) for image in images], axis=0)  # 180 degree
+    images = np.append(images, [np.rot90(image) for image in images], axis=0)   # 90 degree
+    return images
