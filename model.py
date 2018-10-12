@@ -240,6 +240,10 @@ class RCAN:
         self.ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=255))
 
         # summaries
+        tf.summary.image('lr', self.x_lr)
+        tf.summary.image('hr', self.x_hr)
+        tf.summary.image('generated-hr', self.output)
+
         tf.summary.scalar("loss/l1_loss", self.loss)
         tf.summary.scalar("metric/psnr", self.psnr)
         tf.summary.scalar("metric/ssim", self.ssim)
