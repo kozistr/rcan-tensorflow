@@ -125,9 +125,9 @@ class RCAN:
             r, g, b = tf.split(x, num_or_size_splits=3, axis=-1)
 
             # Sub/Add the mean value
-            rgb = tf.concat([r + sign * self.rgb_mean[0] * 255,
-                             g + sign * self.rgb_mean[1] * 255,
-                             b + sign * self.rgb_mean[2] * 255], axis=-1)
+            rgb = tf.concat([r + sign * self.rgb_mean[0],
+                             g + sign * self.rgb_mean[1],
+                             b + sign * self.rgb_mean[2]], axis=-1)
             # x = tfutil.mean_shift(x, rgb_mean) # for fast pre-processing
             return rgb
 
@@ -173,7 +173,7 @@ class RCAN:
             for i in range(self.n_res_blocks):
                 x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i))
 
-            x = tfutil.conv2d(x, f=f, k=kernel_size)
+            x = tfutil.conv2d(x, f=f, k=kernel_size, name='rg-conv-1')
             return tf.math.add(x, skip_conn)
 
     def up_scaling(self, x, f, scale_factor, name):
@@ -197,8 +197,8 @@ class RCAN:
                 raise NotImplementedError("[-] Not supported scaling factor (%d)" % scale_factor)
             return x
 
-    def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale, reuse=False, gpu_idx=0):
-        with tf.variable_scope("Residual_Channel_Attention_Network-gpu%d" % gpu_idx, reuse=reuse):
+    def residual_channel_attention_network(self, x, f, kernel_size, reduction, use_bn, scale):
+        with tf.variable_scope("Residual_Channel_Attention_Network"):
             x = self.image_processing(x, sign=-1, name='pre-processing')
 
             # 1. head
@@ -228,7 +228,6 @@ class RCAN:
                                                               use_bn=self.use_bn,
                                                               scale=self.img_scale,
                                                               )
-        self.output = tf.clip_by_value(self.output, 0, 255)
 
         # l1 loss
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))

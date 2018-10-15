@@ -64,20 +64,36 @@ def main():
         patch = int(np.sqrt(config.patch_size))
 
         rnd = np.random.randint(0, ds.n_images)
+
         sample_lr = lr[config.patch_size * rnd:config.patch_size * (rnd + 1), :, :, :]
         sample_lr = np.reshape(sample_lr, (config.patch_size,) + lr_shape)  # (16,) + lr_shape
+
+        sample_hr = hr[config.patch_size * rnd:config.patch_size * (rnd + 1), :, :, :]
+        sample_hr = np.reshape(sample_hr, (config.patch_size,) + hr_shape)  # (16,) + hr_shape
 
         util.img_save(img=util.merge(sample_lr, (patch, patch)),
                       path=config.output_dir + "/sample_lr.png",
                       use_inverse=False,
                       )
+        util.img_save(img=util.merge(sample_hr, (patch, patch)),
+                      path=config.output_dir + "/sample_hr.png",
+                      use_inverse=False,
+                      )
     else:
         rnd = np.random.randint(0, ds.n_images)
+
         sample_lr = lr[rnd]
         sample_lr = np.reshape(sample_lr, lr_shape)  # lr_shape
 
+        sample_hr = hr[rnd]
+        sample_hr = np.reshape(sample_hr, hr_shape)  # hr_shape
+
         util.img_save(img=sample_lr,
                       path=config.output_dir + "/sample_lr.png",
+                      use_inverse=False,
+                      )
+        util.img_save(img=sample_hr,
+                      path=config.output_dir + "/sample_hr.png",
                       use_inverse=False,
                       )
 
@@ -152,21 +168,14 @@ def main():
                     print("[+] %d epochs %d steps" % (epoch, global_step),
                           "loss : {:.8f} PSNR : {:.4f} SSIM : {:.4f}".format(loss, psnr, ssim))
 
-                    # summary
-                    summary = sess.run(rcan_model.merged,
-                                       feed_dict={
-                                           rcan_model.x_lr: x_lr,
-                                           rcan_model.x_hr: x_hr,
-                                           rcan_model.lr: lr,
-                                       })
+                    # summary & output
+                    summary, output = sess.run([rcan_model.merged, rcan_model.output],
+                                               feed_dict={
+                                                   rcan_model.x_lr: sample_lr,
+                                                   rcan_model.x_hr: sample_hr,
+                                                   rcan_model.lr: lr,
+                                               })
                     rcan_model.writer.add_summary(summary, global_step)
-
-                    # output
-                    output = sess.run(rcan_model.output,
-                                      feed_dict={
-                                          rcan_model.x_lr: sample_lr,
-                                          rcan_model.lr: lr,
-                                      })
 
                     util.img_save(img=util.merge(output, (patch, patch)),
                                   path=config.output_dir + "/%d.png" % global_step,
