@@ -125,9 +125,9 @@ class RCAN:
             r, g, b = tf.split(x, num_or_size_splits=3, axis=-1)
 
             # Sub/Add the mean value
-            rgb = tf.concat([r + sign * self.rgb_mean[0] * 255.,
-                             g + sign * self.rgb_mean[1] * 255.,
-                             b + sign * self.rgb_mean[2] * 255.], axis=-1)
+            rgb = tf.concat([r + sign * self.rgb_mean[0] * 255,
+                             g + sign * self.rgb_mean[1] * 255,
+                             b + sign * self.rgb_mean[2] * 255], axis=-1)
             # x = tfutil.mean_shift(x, rgb_mean) # for fast pre-processing
             return rgb
 
@@ -150,7 +150,7 @@ class RCAN:
 
             x = tfutil.conv2d(x, f=f, k=1, name="conv2d-2")
             x = tf.nn.sigmoid(x)
-            return skip_conn * x
+            return tf.multiply(skip_conn, x)
 
     def residual_channel_attention_block(self, x, f, kernel_size, reduction, use_bn, name):
         with tf.variable_scope("RCAB-%s" % name):
@@ -164,7 +164,7 @@ class RCAN:
             x = tf.layers.BatchNormalization(epsilon=self._eps, name="bn-2")(x) if use_bn else x
 
             x = self.channel_attention(x, f, reduction, name="RCAB-%s" % name)
-            return self.res_scale * x + skip_conn
+            return tf.math.add(self.res_scale * x, skip_conn)
 
     def residual_group(self, x, f, kernel_size, reduction, use_bn, name):
         with tf.variable_scope("RG-%s" % name):
@@ -174,7 +174,7 @@ class RCAN:
                 x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i))
 
             x = tfutil.conv2d(x, f=f, k=kernel_size)
-            return x + skip_conn
+            return tf.math.add(x, skip_conn)
 
     def up_scaling(self, x, f, scale_factor, name):
         """
@@ -210,7 +210,7 @@ class RCAN:
                 x = self.residual_group(x, f, kernel_size, reduction, use_bn, name=str(i))
 
             body = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-body")
-            body += head
+            body = tf.math.add(body, head)
 
             # 3. tail
             x = self.up_scaling(body, f, scale, name='up-scaling')
@@ -228,7 +228,7 @@ class RCAN:
                                                               use_bn=self.use_bn,
                                                               scale=self.img_scale,
                                                               )
-        self.output = tf.cast(tf.clip_by_value(self.output, 0, 255), dtype=tf.uint8)
+        self.output = tf.clip_by_value(self.output, 0, 255)
 
         # l1 loss
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))

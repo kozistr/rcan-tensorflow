@@ -167,7 +167,6 @@ def main():
                                           rcan_model.x_lr: sample_lr,
                                           rcan_model.lr: lr,
                                       })
-                    print(output)
 
                     util.img_save(img=util.merge(output, (patch, patch)),
                                   path=config.output_dir + "/%d.png" % global_step,
