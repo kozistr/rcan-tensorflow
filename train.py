@@ -137,7 +137,7 @@ def main():
         rcan_model.global_step.assign(tf.constant(global_step))
         start_epoch = global_step // (ds.n_images // config.batch_size)
 
-        best_loss = 1e2
+        best_loss = 2e2
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 # training
@@ -146,7 +146,6 @@ def main():
                                                    rcan_model.x_lr: x_lr,
                                                    rcan_model.x_hr: x_hr,
                                                    rcan_model.lr: lr,
-                                                   rcan_model.is_train: True,
                                                })
 
                 if global_step % config.logging_step == 0:
@@ -159,7 +158,6 @@ def main():
                                            rcan_model.x_lr: x_lr,
                                            rcan_model.x_hr: x_hr,
                                            rcan_model.lr: lr,
-                                           rcan_model.is_train: False,
                                        })
                     rcan_model.writer.add_summary(summary, global_step)
 
@@ -168,8 +166,8 @@ def main():
                                       feed_dict={
                                           rcan_model.x_lr: sample_lr,
                                           rcan_model.lr: lr,
-                                          rcan_model.is_train: False,
                                       })
+                    print(output)
 
                     util.img_save(img=util.merge(output, (patch, patch)),
                                   path=config.output_dir + "/%d.png" % global_step,
