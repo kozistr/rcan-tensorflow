@@ -7,33 +7,33 @@ import metric
 class RCAN:
 
     def __init__(self,
-                 sess,                               # tensorflow session
-                 batch_size=16,                      # batch size
-                 n_channel=3,                        # number of image channel, 3 for RGB, 1 for gray-scale
-                 img_scaling_factor=4,               # image scale factor to up
-                 lr_img_size=(48, 48),               # input patch image size for LR
-                 hr_img_size=(192, 192),             # input patch image size for HR
-                 n_res_blocks=20,                    # number of residual block
-                 n_res_groups=10,                    # number of residual group
-                 res_scale=1,                        # scaling factor of res block
-                 n_filters=64,                       # number of conv2d filter size
-                 kernel_size=3,                      # number of conv2d kernel size
-                 activation='relu',                  # activation function
-                 use_bn=False,                       # using batch_norm or not
-                 reduction=16,                       # reduction rate at CA layer
-                 rgb_mean=(0.4488, 0.4371, 0.4040),  # RGB mean, for DIV2K DataSet
-                 rgb_std=(1., 1., 1.),               # RGB std, for DIV2K DataSet
-                 optimizer='adam',                   # name of optimizer
-                 lr=1e-4,                            # learning rate
-                 lr_decay=.5,                        # learning rate decay factor
-                 lr_decay_step=2e5,                  # learning rate decay step
-                 momentum=.9,                        # SGD momentum value
-                 beta1=.9,                           # Adam beta1 value
-                 beta2=.999,                         # Adam beta2 value
-                 opt_eps=1e-8,                       # Adam epsilon value
-                 eps=1.1e-5,                         # epsilon
-                 tf_log="./model/",                  # path saved tensor summary/model
-                 n_gpu=1,                            # number of GPU
+                 sess,                                     # tensorflow session
+                 batch_size=16,                            # batch size
+                 n_channel=3,                              # number of image channel, 3 for RGB, 1 for gray-scale
+                 img_scaling_factor=4,                     # image scale factor to up
+                 lr_img_size=(48, 48),                     # input patch image size for LR
+                 hr_img_size=(192, 192),                   # input patch image size for HR
+                 n_res_blocks=20,                          # number of residual block
+                 n_res_groups=10,                          # number of residual group
+                 res_scale=1,                              # scaling factor of res block
+                 n_filters=64,                             # number of conv2d filter size
+                 kernel_size=3,                            # number of conv2d kernel size
+                 activation='relu',                        # activation function
+                 use_bn=False,                             # using batch_norm or not
+                 reduction=16,                             # reduction rate at CA layer
+                 rgb_mean=(114.2430, 111.4502, 103.0450),  # RGB mean, for DIV2K DataSet
+                 rgb_std=(69.6606, 66.0210, 72.1786),      # RGB std, for DIV2K DataSet
+                 optimizer='adam',                         # name of optimizer
+                 lr=1e-4,                                  # learning rate
+                 lr_decay=.5,                              # learning rate decay factor
+                 lr_decay_step=2e5,                        # learning rate decay step
+                 momentum=.9,                              # SGD momentum value
+                 beta1=.9,                                 # Adam beta1 value
+                 beta2=.999,                               # Adam beta2 value
+                 opt_eps=1e-8,                             # Adam epsilon value
+                 eps=1.1e-5,                               # epsilon
+                 tf_log="./model/",                        # path saved tensor summary/model
+                 n_gpu=1,                                  # number of GPU
                  ):
         self.sess = sess
         self.batch_size = batch_size
@@ -87,8 +87,8 @@ class RCAN:
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
 
         # tensor placeholder for input
-        self.x_lr = tf.placeholder(tf.float32, shape=(None,) + self.lr_img_size, name='x-lr-img')
-        self.x_hr = tf.placeholder(tf.float32, shape=(None,) + self.hr_img_size, name='x-hr-img')
+        self.x_lr = tf.placeholder(tf.uint8, shape=(None,) + self.lr_img_size, name='x-lr-img')
+        self.x_hr = tf.placeholder(tf.uint8, shape=(None,) + self.hr_img_size, name='x-hr-img')
 
         self.lr = tf.placeholder(tf.float32, name='learning_rate')
         # self.is_train = tf.placeholder(tf.bool, name='is_train')
@@ -124,11 +124,17 @@ class RCAN:
         with tf.variable_scope(name):
             r, g, b = tf.split(x, num_or_size_splits=3, axis=-1)
 
-            # Sub/Add the mean value
-            rgb = tf.concat([r + sign * self.rgb_mean[0],
-                             g + sign * self.rgb_mean[1],
-                             b + sign * self.rgb_mean[2]], axis=-1)
-            # x = tfutil.mean_shift(x, rgb_mean) # for fast pre-processing
+            # normalize pixel with pre-calculated value based on DIV2K DataSet
+            if sign == -1:
+                rgb = tf.concat([(r - self.rgb_mean[0]) / self.rgb_std[0],
+                                 (g - self.rgb_mean[1]) / self.rgb_std[1],
+                                 (b - self.rgb_mean[2]) / self.rgb_std[2]], axis=-1)
+            elif sign == 1:
+                rgb = tf.concat([(r * self.rgb_std[0] + self.rgb_mean[0]),
+                                 (g * self.rgb_std[1] + self.rgb_mean[1]),
+                                 (b * self.rgb_std[2] + self.rgb_mean[2])], axis=-1)
+            else:
+                raise ValueError("[-] sign is only for -1 or 1, not (%d)" % sign)
             return rgb
 
     def channel_attention(self, x, f, reduction, name):
