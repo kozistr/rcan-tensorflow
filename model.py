@@ -52,8 +52,8 @@ class RCAN:
         self.use_bn = use_bn
         self.reduction = reduction
 
-        self.rgb_mean = rgb_mean
-        self.rgb_std = rgb_std
+        self.rgb_mean = tf.constant(rgb_mean, dtype=tf.float32)
+        self.rgb_std = tf.constant(rgb_std, dtype=tf.float32)
 
         self.optimizer = optimizer
         self.lr = lr
@@ -87,8 +87,8 @@ class RCAN:
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
 
         # tensor placeholder for input
-        self.x_lr = tf.placeholder(tf.uint8, shape=(None,) + self.lr_img_size, name='x-lr-img')
-        self.x_hr = tf.placeholder(tf.uint8, shape=(None,) + self.hr_img_size, name='x-hr-img')
+        self.x_lr = tf.placeholder(tf.float32, shape=(None,) + self.lr_img_size, name='x-lr-img')
+        self.x_hr = tf.placeholder(tf.float32, shape=(None,) + self.hr_img_size, name='x-hr-img')
 
         self.lr = tf.placeholder(tf.float32, name='learning_rate')
         # self.is_train = tf.placeholder(tf.bool, name='is_train')
