@@ -234,6 +234,7 @@ class RCAN:
                                                               use_bn=self.use_bn,
                                                               scale=self.img_scale,
                                                               )
+        self.output = tf.clip_by_value(self.output, 0., 255.)
 
         # l1 loss
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
@@ -241,8 +242,8 @@ class RCAN:
         self.train_op = self.opt.minimize(self.loss, global_step=self.global_step)
 
         # metrics
-        self.psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=255))
-        self.ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=255))
+        self.psnr = tf.reduce_mean(metric.psnr(self.output, self.x_hr, m_val=1.))
+        self.ssim = tf.reduce_mean(metric.ssim(self.output, self.x_hr, m_val=1.))
 
         # summaries
         tf.summary.image('lr', self.x_lr, max_outputs=self.batch_size)

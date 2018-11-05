@@ -153,7 +153,7 @@ def main():
         rcan_model.global_step.assign(tf.constant(global_step))
         start_epoch = global_step // (ds.n_images // config.batch_size)
 
-        best_loss = 2e2
+        best_loss = 1e8
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 # training
