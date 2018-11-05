@@ -97,6 +97,9 @@ def main():
                       use_inverse=False,
                       )
 
+        # scaling into lr [0, 1]
+        sample_lr /= 255.
+
     # DataIterator
     di = DataIterator(lr, hr, config.batch_size)
 
@@ -156,6 +159,9 @@ def main():
         best_loss = 1e8
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
+                # scaling into lr [0, 1] # hr [0, 255]
+                x_lr /= 255.
+
                 # training
                 _, loss, psnr, ssim = sess.run([rcan_model.train_op, rcan_model.loss, rcan_model.psnr, rcan_model.ssim],
                                                feed_dict={

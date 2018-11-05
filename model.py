@@ -21,8 +21,10 @@ class RCAN:
                  activation='relu',                        # activation function
                  use_bn=False,                             # using batch_norm or not
                  reduction=16,                             # reduction rate at CA layer
-                 rgb_mean=(114.2430, 111.4502, 103.0450),  # RGB mean, for DIV2K DataSet
-                 rgb_std=(69.6606, 66.0210, 72.1786),      # RGB std, for DIV2K DataSet
+                 # rgb_mean=(114.2430, 111.4502, 103.0450),  # RGB mean, for DIV2K DataSet
+                 # rgb_std=(69.6606, 66.0210, 72.1786),      # RGB std, for DIV2K DataSet
+                 rgb_mean=(0.4480, 0.4371, 0.4041),        # RGB mean, for DIV2K DataSet
+                 rgb_std=(0.2732, 0.2589, 0.2831),         # RGB std, for DIV2K DataSet
                  optimizer='adam',                         # name of optimizer
                  lr=1e-4,                                  # learning rate
                  lr_decay=.5,                              # learning rate decay factor
@@ -234,7 +236,7 @@ class RCAN:
                                                               use_bn=self.use_bn,
                                                               scale=self.img_scale,
                                                               )
-        self.output = tf.clip_by_value(self.output, 0., 255.)
+        self.output = tf.clip_by_value(self.output * 255., 0., 255.)
 
         # l1 loss
         self.loss = tf.reduce_mean(tf.abs(self.output - self.x_hr))
