@@ -160,7 +160,7 @@ def main():
         for epoch in range(start_epoch, config.epochs):
             for x_lr, x_hr in di.iterate():
                 # scaling into lr [0, 1] # hr [0, 255]
-                x_lr /= 255.
+                x_lr = np.true_divide(x_lr, 255., casting='unsafe')
 
                 # training
                 _, loss, psnr, ssim = sess.run([rcan_model.train_op, rcan_model.loss, rcan_model.psnr, rcan_model.ssim],
