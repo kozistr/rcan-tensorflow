@@ -127,16 +127,9 @@ class RCAN:
             r, g, b = tf.split(x, num_or_size_splits=3, axis=-1)
 
             # normalize pixel with pre-calculated value based on DIV2K DataSet
-            if sign == -1:
-                rgb = tf.concat([(r - self.rgb_mean[0]) / self.rgb_std[0],
-                                 (g - self.rgb_mean[1]) / self.rgb_std[1],
-                                 (b - self.rgb_mean[2]) / self.rgb_std[2]], axis=-1)
-            elif sign == 1:
-                rgb = tf.concat([(r * self.rgb_std[0] + self.rgb_mean[0]),
-                                 (g * self.rgb_std[1] + self.rgb_mean[1]),
-                                 (b * self.rgb_std[2] + self.rgb_mean[2])], axis=-1)
-            else:
-                raise ValueError("[-] sign is only for -1 or 1, not (%d)" % sign)
+            rgb = tf.concat([(r + sign * self.rgb_mean[0]),
+                             (g + sign * self.rgb_mean[1]),
+                             (b + sign * self.rgb_mean[2])], axis=-1)
             return rgb
 
     def channel_attention(self, x, f, reduction, name):
@@ -172,7 +165,7 @@ class RCAN:
             x = tf.layers.BatchNormalization(epsilon=self._eps, name="bn-2")(x) if use_bn else x
 
             x = self.channel_attention(x, f, reduction, name="RCAB-%s" % name)
-            return tf.math.add(self.res_scale * x, skip_conn)
+            return self.res_scale * x + skip_conn  # tf.math.add(self.res_scale * x, skip_conn)
 
     def residual_group(self, x, f, kernel_size, reduction, use_bn, name):
         with tf.variable_scope("RG-%s" % name):
@@ -182,7 +175,7 @@ class RCAN:
                 x = self.residual_channel_attention_block(x, f, kernel_size, reduction, use_bn, name=str(i))
 
             x = tfutil.conv2d(x, f=f, k=kernel_size, name='rg-conv-1')
-            return tf.math.add(x, skip_conn)
+            return x + skip_conn  # tf.math.add(x, skip_conn)
 
     def up_scaling(self, x, f, scale_factor, name):
         """
@@ -218,7 +211,7 @@ class RCAN:
                 x = self.residual_group(x, f, kernel_size, reduction, use_bn, name=str(i))
 
             body = tfutil.conv2d(x, f=f, k=kernel_size, name="conv2d-body")
-            body = tf.math.add(body, head)
+            body += head  # tf.math.add(body, head)
 
             # 3. tail
             x = self.up_scaling(body, f, scale, name='up-scaling')
