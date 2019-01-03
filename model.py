@@ -116,9 +116,8 @@ class RCAN:
         if self.optimizer == 'adam':
             self.opt = tf.train.AdamOptimizer(learning_rate=self.lr,
                                               beta1=self.beta1, beta2=self.beta2, epsilon=self.opt_eps)
-        elif self.optimizer == 'sgd':  # gonna use mm opt actually
-            self.opt = tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=self.momentum)
-            # self.opt = tf.train.GradientDescentOptimizer(learning_rate=self.lr)
+        elif self.optimizer == 'sgd':  # sgd + m with nesterov
+            self.opt = tf.train.MomentumOptimizer(learning_rate=self.lr, momentum=self.momentum, use_nesterov=True)
         else:
             raise NotImplementedError("[-] Not supported optimizer (%s)" % self.optimizer)
 
