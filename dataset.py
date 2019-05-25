@@ -34,7 +34,7 @@ class DataSetLoader:
         elif ext == 'npy':
             return 'npy'
         else:
-            raise ValueError("[-] There'is no supporting file... [%s] :(" % ext)
+            raise ValueError("[-] There's no supporting file... [%s] :(" % ext)
 
     @staticmethod
     def get_img(path, size=(64, 64), interp=cv2.INTER_CUBIC):
