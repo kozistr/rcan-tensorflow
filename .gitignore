@@ -105,3 +105,6 @@ ENV/
 
 # github pr forms
 .github/
+
+# vscode settings
+.vscode
